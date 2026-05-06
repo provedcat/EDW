@@ -20,6 +20,39 @@
     <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
   </header>
 
+  <section id="authBox" class="px-6 pb-4">
+    <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+      <div id="loggedOutBox" class="space-y-3">
+        <input id="authEmail" type="email" placeholder="이메일"
+          class="w-full p-3 bg-white rounded-xl font-bold text-sm border border-gray-100">
+        <button id="emailOtpLoginBtn" onclick="handleEmailOtpLogin()"
+          class="w-full py-3 bg-[#2d7dd2] text-white text-sm font-black rounded-xl shadow-sm">
+          이메일로 로그인 링크 받기
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" disabled
+            class="py-3 bg-[#FEE500] text-[#3C1E1E] text-sm font-black rounded-xl opacity-60 cursor-not-allowed">
+            카카오로 시작하기
+          </button>
+          <button type="button" disabled
+            class="py-3 bg-white text-gray-400 text-sm font-black rounded-xl border border-gray-200 opacity-60 cursor-not-allowed">
+            Google로 시작하기
+          </button>
+        </div>
+      </div>
+
+      <div id="loggedInBox" class="hidden flex items-center justify-between gap-3">
+        <p id="userEmail" class="text-sm font-black text-gray-700 truncate"></p>
+        <button id="logoutBtn" onclick="handleLogout()"
+          class="shrink-0 px-4 py-2 bg-gray-800 text-white text-xs font-black rounded-xl">
+          로그아웃
+        </button>
+      </div>
+
+      <p id="authMsg" class="hidden text-xs font-bold text-gray-400"></p>
+    </div>
+  </section>
+
   <nav class="px-6 pb-4 grid grid-cols-2 gap-2">
     <button id="navCalculator" onclick="showPage('calculatorPage')"
       class="py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white shadow-sm">
@@ -355,7 +388,9 @@ let state = {
   wetSlotIdCounter: 0,
   wetSlotIds: [],
   uploadType: 'dry',
-  lastResult: null
+  lastResult: null,
+  currentUser: null,
+  selectedSavedCatId: null
 };
 
 // -----------------------------------------------
@@ -387,11 +422,111 @@ function showPage(pageName) {
   });
 }
 
+
+// -----------------------------------------------
+// Supabase Auth
+// -----------------------------------------------
+async function getCurrentUser() {
+  const { data, error } = await sb.auth.getUser();
+  if (error) {
+    console.warn('현재 사용자 확인 실패:', error.message);
+    return null;
+  }
+  return data?.user || null;
+}
+
+function setAuthMessage(message, tone = 'gray') {
+  const msg = document.getElementById('authMsg');
+  if (!msg) return;
+
+  msg.textContent = message;
+  msg.className = `text-xs font-bold ${tone === 'red' ? 'text-red-400' : tone === 'blue' ? 'text-blue-400' : 'text-gray-400'}`;
+  msg.classList.toggle('hidden', !message);
+}
+
+async function refreshAuthUI() {
+  const user = await getCurrentUser();
+  const loggedOutBox = document.getElementById('loggedOutBox');
+  const loggedInBox = document.getElementById('loggedInBox');
+  const userEmail = document.getElementById('userEmail');
+  const savedCatLoadBox = document.getElementById('savedCatLoadBox');
+  const myCatList = document.getElementById('myCatList');
+  const saveButton = document.getElementById('saveFeedingRecordBtn');
+  const saveMsg = document.getElementById('saveFeedingRecordMsg');
+
+  state.currentUser = user;
+
+  if (user) {
+    loggedOutBox?.classList.add('hidden');
+    loggedInBox?.classList.remove('hidden');
+    if (userEmail) userEmail.textContent = user.email || '로그인 사용자';
+    savedCatLoadBox?.classList.remove('hidden');
+  } else {
+    state.currentUser = null;
+    state.selectedSavedCatId = null;
+    loggedInBox?.classList.add('hidden');
+    loggedOutBox?.classList.remove('hidden');
+    if (userEmail) userEmail.textContent = '';
+    savedCatLoadBox?.classList.add('hidden');
+    myCatList?.classList.add('hidden');
+    saveButton?.classList.add('hidden');
+    saveMsg?.classList.add('hidden');
+  }
+
+  if (typeof updateSaveFeedingButtonVisibility === 'function') {
+    updateSaveFeedingButtonVisibility();
+  }
+}
+
+async function handleEmailOtpLogin() {
+  const email = document.getElementById('authEmail')?.value.trim();
+
+  if (!email) {
+    setAuthMessage('로그인 링크를 받을 이메일을 입력해주세요.', 'red');
+    return;
+  }
+
+  setAuthMessage('로그인 링크를 보내는 중입니다...', 'blue');
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+    }
+  });
+
+  if (error) {
+    setAuthMessage(`이메일 전송 실패: ${error.message}`, 'red');
+    return;
+  }
+
+  setAuthMessage('이메일을 확인해주세요. 로그인 링크를 보냈습니다.', 'blue');
+}
+
+async function handleLogout() {
+  setAuthMessage('로그아웃 중입니다...', 'blue');
+  const { error } = await sb.auth.signOut();
+
+  if (error) {
+    setAuthMessage(`로그아웃 실패: ${error.message}`, 'red');
+    return;
+  }
+
+  state.selectedSavedCatId = null;
+  await refreshAuthUI();
+  setAuthMessage('로그아웃되었습니다.', 'gray');
+}
+
+async function checkLoginState() {
+  await refreshAuthUI();
+}
+
 // -----------------------------------------------
 // 앱 시작
 // -----------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
   showPage('calculatorPage');
+  refreshAuthUI();
+  sb.auth.onAuthStateChange(() => refreshAuthUI());
   addWetSlot();
 
   ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
