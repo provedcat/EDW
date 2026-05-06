@@ -16,8 +16,12 @@
 <div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
 
   <!-- 헤더 -->
-  <header class="px-6 pt-10 pb-4">
+  <header class="px-6 pt-10 pb-4 flex items-center justify-between">
     <h1 class="text-2xl font-black tracking-tighter text-[#2d7dd2] italic">ProvedCat</h1>
+    <button id="authOpenBtn" type="button" onclick="openAuthSheet()"
+      class="px-3 py-2 rounded-full bg-gray-50 border border-gray-100 text-xs font-black text-gray-500">
+      로그인
+    </button>
   </header>
 
   <nav class="px-6 pb-4 grid grid-cols-2 gap-2">
@@ -243,6 +247,55 @@
   </main>
 </div>
 
+<div id="authSheet" class="hidden fixed inset-0 z-[9998]">
+  <div class="absolute inset-0 bg-black/30" onclick="closeAuthSheet()"></div>
+  <div class="absolute left-0 right-0 bottom-0 mx-auto max-w-[640px] bg-white rounded-t-3xl p-6 space-y-4 shadow-2xl">
+    <div class="flex items-start justify-between gap-4">
+      <div>
+        <p class="text-lg font-black text-gray-800">계정</p>
+        <p class="mt-1 text-sm font-bold text-gray-400">내 고양이 기록을 저장하려면 로그인하세요.</p>
+      </div>
+      <button type="button" onclick="closeAuthSheet()"
+        class="shrink-0 w-9 h-9 rounded-full bg-gray-50 border border-gray-100 text-gray-400 font-black">
+        ×
+      </button>
+    </div>
+
+    <div id="loggedOutAuth" class="space-y-3">
+      <input type="email" id="authEmail" placeholder="email@example.com"
+        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
+      <button type="button" onclick="handleEmailOtpLogin()"
+        class="w-full px-4 py-4 bg-[#2d7dd2] text-white text-sm font-black rounded-2xl shadow-sm">
+        이메일로 로그인 링크 받기
+      </button>
+      <div class="grid grid-cols-2 gap-2">
+        <button type="button" disabled
+          class="py-3 bg-gray-50 text-gray-300 text-xs font-black rounded-xl border border-gray-100">
+          카카오로 시작하기
+        </button>
+        <button type="button" disabled
+          class="py-3 bg-gray-50 text-gray-300 text-xs font-black rounded-xl border border-gray-100">
+          Google로 시작하기
+        </button>
+      </div>
+      <p id="authMsg" class="hidden text-xs font-bold text-gray-400"></p>
+    </div>
+
+    <div id="loggedInAuth" class="hidden p-4 bg-blue-50 rounded-2xl border border-blue-100">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-xs font-bold text-blue-400">로그인 계정</p>
+          <p id="userEmail" class="truncate text-sm font-black text-gray-800"></p>
+        </div>
+        <button type="button" onclick="handleLogout()"
+          class="shrink-0 px-4 py-2 bg-white text-blue-400 text-xs font-black rounded-xl border border-blue-100">
+          로그아웃
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- -----------------------------------------------
   공유 카드 모달
   역할: 결과를 9:16 이미지로 보여주고 저장/공유 제공
@@ -413,22 +466,103 @@ function showPage(pageName) {
 // -----------------------------------------------
 // 로그인 사용자 고양이 불러오기
 // -----------------------------------------------
-async function checkLoginState() {
-  const box = document.getElementById('savedCatLoadBox');
-  if (!box) return;
-
+async function getCurrentUser() {
   const { data, error } = await sb.auth.getUser();
-  if (error || !data?.user) {
+  if (error || !data?.user) return null;
+  return data.user;
+}
+
+function setAuthMessage(message, tone = 'gray') {
+  const msg = document.getElementById('authMsg');
+  if (!msg) return;
+
+  msg.textContent = message;
+  msg.className = `text-xs font-bold ${tone === 'red' ? 'text-red-400' : tone === 'blue' ? 'text-blue-400' : 'text-gray-400'}`;
+  msg.classList.toggle('hidden', !message);
+}
+
+function openAuthSheet() {
+  const sheet = document.getElementById('authSheet');
+  if (!sheet) return;
+
+  sheet.classList.remove('hidden');
+  document.body.classList.add('overflow-hidden');
+  document.getElementById('authEmail')?.focus();
+}
+
+function closeAuthSheet() {
+  const sheet = document.getElementById('authSheet');
+  if (!sheet) return;
+
+  sheet.classList.add('hidden');
+  document.body.classList.remove('overflow-hidden');
+}
+
+async function refreshAuthUI() {
+  const box = document.getElementById('savedCatLoadBox');
+  const loggedOutAuth = document.getElementById('loggedOutAuth');
+  const loggedInAuth = document.getElementById('loggedInAuth');
+  const userEmail = document.getElementById('userEmail');
+  const authOpenBtn = document.getElementById('authOpenBtn');
+  if (!box || !loggedOutAuth || !loggedInAuth || !userEmail) return;
+
+  const user = await getCurrentUser();
+  if (!user) {
     state.currentUser = null;
     state.selectedSavedCatId = null;
     box.classList.add('hidden');
+    loggedOutAuth.classList.remove('hidden');
+    loggedInAuth.classList.add('hidden');
+    userEmail.textContent = '';
+    if (authOpenBtn) authOpenBtn.textContent = '로그인';
     updateSaveFeedingButtonVisibility();
     return;
   }
 
-  state.currentUser = data.user;
+  state.currentUser = user;
+  loggedOutAuth.classList.add('hidden');
+  loggedInAuth.classList.remove('hidden');
+  userEmail.textContent = user.email || '';
+  if (authOpenBtn) authOpenBtn.textContent = '내 계정';
   box.classList.remove('hidden');
   updateSaveFeedingButtonVisibility();
+}
+
+async function handleEmailOtpLogin() {
+  const emailInput = document.getElementById('authEmail');
+  const email = emailInput?.value.trim();
+
+  if (!email) {
+    setAuthMessage('이메일을 입력해 주세요.', 'red');
+    emailInput?.focus();
+    return;
+  }
+
+  setAuthMessage('로그인 링크를 보내는 중입니다...', 'blue');
+
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+    }
+  });
+
+  if (error) {
+    setAuthMessage(`로그인 링크 전송 실패: ${error.message}`, 'red');
+    return;
+  }
+
+  setAuthMessage('이메일로 전송된 로그인 링크를 확인해 주세요.', 'blue');
+}
+
+async function handleLogout() {
+  await sb.auth.signOut();
+  setAuthMessage('', 'gray');
+  await refreshAuthUI();
+}
+
+async function checkLoginState() {
+  await refreshAuthUI();
 }
 
 function escapeHtml(value) {
@@ -569,7 +703,8 @@ function handleSaveFeedingRecord() {
 // -----------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
   showPage('calculatorPage');
-  checkLoginState();
+  refreshAuthUI();
+  sb.auth.onAuthStateChange(() => refreshAuthUI());
   addWetSlot();
 
   ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
