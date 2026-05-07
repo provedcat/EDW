@@ -65,7 +65,12 @@ async function refreshAuthUI() {
 async function handleKakaoOAuthLogin() {
   setAuthMessage('카카오 로그인으로 이동합니다...', 'blue');
 
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'kakao' });
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'kakao',
+    options: {
+      redirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+    }
+  });
 
   if (error) {
     setAuthMessage(`카카오 로그인 시작 실패: ${error.message}`, 'red');
@@ -75,7 +80,12 @@ async function handleKakaoOAuthLogin() {
 async function handleGoogleOAuthLogin() {
   setAuthMessage('Google 로그인으로 이동합니다...', 'blue');
 
-  const { error } = await sb.auth.signInWithOAuth({ provider: 'google' });
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+    }
+  });
 
   if (error) {
     setAuthMessage(`Google 로그인 시작 실패: ${error.message}`, 'red');
@@ -92,3 +102,9 @@ async function checkLoginState() {
   await refreshAuthUI();
 }
 
+window.openAuthSheet = openAuthSheet;
+window.closeAuthSheet = closeAuthSheet;
+window.handleKakaoOAuthLogin = handleKakaoOAuthLogin;
+window.handleGoogleOAuthLogin = handleGoogleOAuthLogin;
+window.handleLogout = handleLogout;
+window.checkLoginState = checkLoginState;
