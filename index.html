@@ -262,22 +262,14 @@
     </div>
 
     <div id="loggedOutAuth" class="space-y-3">
-      <input type="email" id="authEmail" placeholder="email@example.com"
-        class="w-full p-4 bg-gray-50 rounded-2xl font-bold text-sm border border-gray-100">
-      <button type="button" onclick="handleEmailOtpLogin()"
-        class="w-full px-4 py-4 bg-[#2d7dd2] text-white text-sm font-black rounded-2xl shadow-sm">
-        이메일로 로그인 링크 받기
+      <button type="button" onclick="handleKakaoOAuthLogin()"
+        class="w-full py-4 bg-[#FEE500] text-[#191919] text-sm font-black rounded-2xl shadow-sm border border-[#FEE500]">
+        카카오로 시작하기
       </button>
-      <div class="grid grid-cols-2 gap-2">
-        <button type="button" disabled
-          class="py-3 bg-gray-50 text-gray-300 text-xs font-black rounded-xl border border-gray-100">
-          카카오로 시작하기
-        </button>
-        <button type="button" disabled
-          class="py-3 bg-gray-50 text-gray-300 text-xs font-black rounded-xl border border-gray-100">
-          Google로 시작하기
-        </button>
-      </div>
+      <button type="button" onclick="handleGoogleOAuthLogin()"
+        class="w-full py-4 bg-white text-gray-700 text-sm font-black rounded-2xl shadow-sm border border-gray-200">
+        Google로 시작하기
+      </button>
       <p id="authMsg" class="hidden text-xs font-bold text-gray-400"></p>
     </div>
 
