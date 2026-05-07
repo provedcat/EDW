@@ -22,7 +22,6 @@ function openAuthSheet() {
 
   sheet.classList.remove('hidden');
   document.body.classList.add('overflow-hidden');
-  document.getElementById('authEmail')?.focus();
 }
 
 function closeAuthSheet() {
@@ -63,31 +62,24 @@ async function refreshAuthUI() {
   updateSaveFeedingButtonVisibility();
 }
 
-async function handleEmailOtpLogin() {
-  const emailInput = document.getElementById('authEmail');
-  const email = emailInput?.value.trim();
+async function handleKakaoOAuthLogin() {
+  setAuthMessage('카카오 로그인으로 이동합니다...', 'blue');
 
-  if (!email) {
-    setAuthMessage('이메일을 입력해 주세요.', 'red');
-    emailInput?.focus();
-    return;
-  }
-
-  setAuthMessage('로그인 링크를 보내는 중입니다...', 'blue');
-
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: 'https://provedcat.github.io/catfoodcalculator/'
-    }
-  });
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'kakao' });
 
   if (error) {
-    setAuthMessage(`로그인 링크 전송 실패: ${error.message}`, 'red');
-    return;
+    setAuthMessage(`카카오 로그인 시작 실패: ${error.message}`, 'red');
   }
+}
 
-  setAuthMessage('이메일로 전송된 로그인 링크를 확인해 주세요.', 'blue');
+async function handleGoogleOAuthLogin() {
+  setAuthMessage('Google 로그인으로 이동합니다...', 'blue');
+
+  const { error } = await sb.auth.signInWithOAuth({ provider: 'google' });
+
+  if (error) {
+    setAuthMessage(`Google 로그인 시작 실패: ${error.message}`, 'red');
+  }
 }
 
 async function handleLogout() {
