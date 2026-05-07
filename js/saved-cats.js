@@ -106,14 +106,36 @@ async function selectSavedCat(cat) {
 
 function updateSaveFeedingButtonVisibility() {
   const button = document.getElementById('saveFeedingRecordBtn');
+  const msg = document.getElementById('saveFeedingRecordMsg');
   if (!button) return;
 
+  const hasResult = !!state.lastResult;
   const canSave = !!(state.currentUser && state.selectedSavedCatId && state.lastResult);
-  button.classList.toggle('hidden', !canSave);
 
-  if (!canSave) {
-    document.getElementById('saveFeedingRecordMsg')?.classList.add('hidden');
+  button.classList.toggle('hidden', !hasResult);
+  button.disabled = !canSave;
+  button.classList.toggle('bg-[#2d7dd2]', canSave);
+  button.classList.toggle('text-white', canSave);
+  button.classList.toggle('bg-gray-200', !canSave);
+  button.classList.toggle('text-gray-400', !canSave);
+  button.classList.toggle('cursor-not-allowed', !canSave);
+  button.classList.toggle('opacity-70', !canSave);
+
+  if (!msg) return;
+
+  if (canSave) {
+    msg.classList.add('hidden');
+    return;
   }
+
+  if (!state.lastResult) {
+    msg.textContent = '먼저 급여량을 계산해 주세요.';
+  } else if (!state.currentUser) {
+    msg.textContent = '로그인 후 계산 결과를 저장할 수 있습니다.';
+  } else if (!state.selectedSavedCatId) {
+    msg.textContent = '내 고양이를 불러온 뒤 계산 결과를 저장할 수 있습니다.';
+  }
+  msg.classList.remove('hidden');
 }
 
 function handleSaveFeedingRecord() {
