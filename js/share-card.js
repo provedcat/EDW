@@ -144,12 +144,11 @@ async function shareCard_save() {
 
   const card = document.getElementById('shareCard');
 
-  // 캡처 전: 고정 크기로 강제 지정
+  // 캡처 전: 카드 폭만 공유 이미지 기준으로 맞추고 높이는 콘텐츠에 맡김
   const prevStyle = card.getAttribute('style') || '';
+  const cardWidth = 360;
   card.style.cssText = `
-    width: 360px !important;
-    height: 640px !important;
-    aspect-ratio: unset !important;
+    width: ${cardWidth}px !important;
     position: fixed !important;
     top: -9999px !important;
     left: -9999px !important;
@@ -159,15 +158,16 @@ async function shareCard_save() {
   await new Promise(r => setTimeout(r, 100));
 
   try {
+    const cardHeight = Math.ceil(card.scrollHeight);
     const canvas = await html2canvas(card, {
       scale: 3,
       useCORS: true,
       backgroundColor: '#0d1e36',
       logging: false,
-      width: 360,
-      height: 640,
-      windowWidth: 360,
-      windowHeight: 640
+      width: cardWidth,
+      height: cardHeight,
+      windowWidth: cardWidth,
+      windowHeight: cardHeight
     });
 
     const link = document.createElement('a');
@@ -200,10 +200,9 @@ async function shareCard_kakao() {
 
   const card = document.getElementById('shareCard');
   const prevStyle = card.getAttribute('style') || '';
+  const cardWidth = 360;
   card.style.cssText = `
-    width: 360px !important;
-    height: 640px !important;
-    aspect-ratio: unset !important;
+    width: ${cardWidth}px !important;
     position: fixed !important;
     top: -9999px !important;
     left: -9999px !important;
@@ -212,15 +211,16 @@ async function shareCard_kakao() {
   await new Promise(r => setTimeout(r, 100));
 
   try {
+    const cardHeight = Math.ceil(card.scrollHeight);
     const canvas = await html2canvas(card, {
       scale: 3,
       useCORS: true,
       backgroundColor: '#0d1e36',
       logging: false,
-      width: 360,
-      height: 640,
-      windowWidth: 360,
-      windowHeight: 640
+      width: cardWidth,
+      height: cardHeight,
+      windowWidth: cardWidth,
+      windowHeight: cardHeight
     });
 
     card.setAttribute('style', prevStyle);
