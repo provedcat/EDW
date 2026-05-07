@@ -236,6 +236,7 @@ function calculate() {
   document.getElementById('resultArea').classList.remove('hidden');
   document.getElementById('capBtn').classList.remove('hidden');
   document.getElementById('waterBtn').classList.remove('hidden');
+  document.getElementById('openShareModalBtn').classList.remove('hidden');
   document.getElementById('capResult').classList.add('hidden');
   document.getElementById('waterResult').classList.add('hidden');
 
