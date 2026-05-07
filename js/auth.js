@@ -99,4 +99,3 @@ async function handleLogout() {
 async function checkLoginState() {
   await refreshAuthUI();
 }
-
