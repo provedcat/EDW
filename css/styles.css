@@ -44,12 +44,13 @@
     }
 
     /* -----------------------------------------------
-       공유 카드 본체 (9:16 비율 — 스토리 형태)
+       공유 카드 본체 (콘텐츠 높이에 따라 자연 확장)
        역할: 이 div 전체가 png 이미지로 캡처됩니다
     ----------------------------------------------- */
     #shareCard {
       width: 100%;
-      aspect-ratio: 9 / 16;
+      height: auto;
+      min-height: 640px;
       background: #0d1e36;
       border-radius: 22px;
       overflow: hidden;
