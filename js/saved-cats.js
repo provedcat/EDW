@@ -309,7 +309,11 @@ async function saveFeedingRecord(catId, currentResult) {
   const catInput = getCurrentCatInput();
   const recordedDate = getTodayDateString();
 
-  await upsertWeightRecord(catId, userId, catInput.weightKg);
+  try {
+    await upsertWeightRecord(catId, userId, catInput.weightKg);
+  } catch (error) {
+    throw new Error(`체중 기록 저장 실패: ${error.message || error}`);
+  }
 
   const { error } = await sb
     .from('feeding_records')
@@ -320,7 +324,9 @@ async function saveFeedingRecord(catId, currentResult) {
       result_data: currentResult
     });
 
-  if (error) throw error;
+  if (error) {
+    throw new Error(`계산 결과 저장 실패: ${error.message || error}`);
+  }
 }
 
 async function handleSaveFeedingRecord() {
@@ -330,6 +336,7 @@ async function handleSaveFeedingRecord() {
   updateSaveFeedingButtonVisibility();
   let finalMessage = null;
   let finalTone = 'blue';
+  let shouldCloseShareModal = false;
 
   try {
     const { data: { user } } = await sb.auth.getUser();
@@ -366,20 +373,25 @@ async function handleSaveFeedingRecord() {
       finalMessage = catSaveResult.reusedExisting
         ? '기존 고양이 프로필을 찾아 계산 결과를 저장했습니다.'
         : '현재 입력값으로 고양이 프로필을 만들고 계산 결과를 저장했습니다.';
-      finalTone = 'blue';
-      return;
+    } else {
+      await saveFeedingRecord(catId, state.lastResult);
+      state.lastSavedResultKey = getFeedingRecordSaveKey(catId, state.lastResult);
+      finalMessage = '계산 결과가 저장되었습니다.';
     }
 
-    await saveFeedingRecord(catId, state.lastResult);
-    state.lastSavedResultKey = getFeedingRecordSaveKey(catId, state.lastResult);
-    finalMessage = '계산 결과가 저장되었습니다.';
     finalTone = 'blue';
+    shouldCloseShareModal = true;
   } catch (error) {
-    finalMessage = error.message || '계산 결과 저장에 실패했습니다.';
+    finalMessage = `저장에 실패했습니다. 데이터베이스 테이블 구조 또는 권한 정책을 확인해 주세요: ${error.message || error}`;
     finalTone = 'red';
   } finally {
     state.isSavingFeedingRecord = false;
     updateSaveFeedingButtonVisibility();
     if (finalMessage) setSaveFeedingRecordMessage(finalMessage, finalTone);
+  }
+
+  if (shouldCloseShareModal) {
+    await new Promise(resolve => setTimeout(resolve, 850));
+    if (typeof closeShareModal === 'function') closeShareModal();
   }
 }
