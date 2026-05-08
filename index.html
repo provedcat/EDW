@@ -424,7 +424,10 @@ let state = {
   uploadType: 'dry',
   lastResult: null,
   currentUser: null,
-  selectedSavedCatId: null
+  selectedSavedCatId: null,
+  isSavingFeedingRecord: false,
+  isApplyingSavedCat: false,
+  lastSavedResultKey: null
 };
 
 // -----------------------------------------------
@@ -470,6 +473,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     el.addEventListener('change', updateCalorie);
     if (id === 'catWeight') el.addEventListener('input', updateCalorie);
+  });
+
+  ['catName','catBirth','catNeutered'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    const resetSelectedCatOnManualEdit = () => {
+      if (state.isApplyingSavedCat) return;
+      state.selectedSavedCatId = null;
+      updateSaveFeedingButtonVisibility();
+    };
+
+    el.addEventListener('change', resetSelectedCatOnManualEdit);
+    el.addEventListener('input', resetSelectedCatOnManualEdit);
   });
 
   // 카카오 SDK 초기화
