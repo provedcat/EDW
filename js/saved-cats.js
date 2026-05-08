@@ -17,12 +17,73 @@ function setSavedCatLoadMessage(message, tone = 'gray') {
   msg.classList.toggle('hidden', !message);
 }
 
+function setSaveFeedingRecordMessage(message, tone = 'blue') {
+  const msg = document.getElementById('saveFeedingRecordMsg');
+  if (!msg) return;
+
+  msg.textContent = message;
+  msg.className = `text-xs font-bold ${tone === 'red' ? 'text-red-400' : tone === 'blue' ? 'text-blue-400' : 'text-gray-400'} text-center`;
+  msg.classList.toggle('hidden', !message);
+}
+
+function getTodayDateString() {
+  const today = new Date();
+  const timezoneOffsetMs = today.getTimezoneOffset() * 60 * 1000;
+  return new Date(today.getTime() - timezoneOffsetMs).toISOString().slice(0, 10);
+}
+
+function getCurrentCatInput() {
+  const name = document.getElementById('catName')?.value.trim() || '';
+  const birthDate = document.getElementById('catBirth')?.value || '';
+  const neuteredValue = document.getElementById('catNeutered')?.value;
+  const weightKg = parseFloat(document.getElementById('catWeight')?.value);
+
+  return {
+    name,
+    birthDate,
+    neutered: neuteredValue === 'true' ? true : neuteredValue === 'false' ? false : null,
+    weightKg
+  };
+}
+
+function isValidCatInput(catInput) {
+  const birthDate = catInput.birthDate ? new Date(`${catInput.birthDate}T00:00:00`) : null;
+  const today = new Date(`${getTodayDateString()}T00:00:00`);
+
+  return !!(
+    catInput.name &&
+    birthDate &&
+    !Number.isNaN(birthDate.getTime()) &&
+    birthDate <= today &&
+    typeof catInput.neutered === 'boolean' &&
+    Number.isFinite(catInput.weightKg) &&
+    catInput.weightKg >= 0.5 &&
+    catInput.weightKg <= 20
+  );
+}
+
+async function fetchMyCats(userId) {
+  const { data, error } = await sb
+    .from('cats')
+    .select('id, name, birth_date, neutered')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
 async function loadMyCats() {
   const list = document.getElementById('myCatList');
   if (!list) return;
 
-  if (!state.currentUser) {
-    setSavedCatLoadMessage('로그인 후 저장된 고양이를 불러올 수 있습니다.', 'gray');
+  const { data: { user } } = await sb.auth.getUser();
+  state.currentUser = user || null;
+
+  if (!user) {
+    setSavedCatLoadMessage('로그인하면 저장된 고양이 프로필을 불러올 수 있습니다.', 'gray');
+    openAuthSheet?.();
+    updateSaveFeedingButtonVisibility();
     return;
   }
 
@@ -30,23 +91,20 @@ async function loadMyCats() {
   list.classList.add('hidden');
   setSavedCatLoadMessage('저장된 고양이를 불러오는 중입니다...', 'blue');
 
-  const { data, error } = await sb
-    .from('cats')
-    .select('id, name, birth_date, neutered')
-    .eq('user_id', state.currentUser.id)
-    .order('created_at', { ascending: false });
-
-  if (error) {
+  let cats;
+  try {
+    cats = await fetchMyCats(user.id);
+  } catch (error) {
     setSavedCatLoadMessage(`불러오기 실패: ${error.message}`, 'red');
     return;
   }
 
-  if (!data || data.length === 0) {
-    setSavedCatLoadMessage('저장된 고양이가 없습니다. 직접 입력해서 계산할 수 있습니다.', 'gray');
+  if (!cats || cats.length === 0) {
+    setSavedCatLoadMessage('저장된 고양이가 없습니다. 현재 입력값으로 계산 결과를 저장할 수 있습니다.', 'gray');
     return;
   }
 
-  list.innerHTML = data.map(cat => `
+  list.innerHTML = cats.map(cat => `
     <button type="button" data-cat-id="${escapeHtml(cat.id)}"
       class="w-full p-3 bg-white border border-blue-100 rounded-xl text-left hover:border-[#2d7dd2] transition-colors">
       <span class="block text-sm font-black text-gray-800">${escapeHtml(cat.name || '이름 없음')}</span>
@@ -55,7 +113,7 @@ async function loadMyCats() {
       </span>
     </button>
   `).join('');
-  list._cats = data;
+  list._cats = cats;
   list.onclick = e => {
     const button = e.target.closest('[data-cat-id]');
     if (!button) return;
@@ -106,49 +164,216 @@ async function selectSavedCat(cat) {
 
 function updateSaveFeedingButtonVisibility() {
   const button = document.getElementById('saveFeedingRecordBtn');
-  const msg = document.getElementById('saveFeedingRecordMsg');
   if (!button) return;
 
   const hasResult = !!state.lastResult;
-  const canSave = !!(state.currentUser && state.selectedSavedCatId && state.lastResult);
+  const isSaving = !!state.isSavingFeedingRecord;
+  const canClick = hasResult && !isSaving;
 
   button.classList.toggle('hidden', !hasResult);
-  button.disabled = !canSave;
-  button.classList.toggle('bg-[#2d7dd2]', canSave);
-  button.classList.toggle('text-white', canSave);
-  button.classList.toggle('bg-gray-200', !canSave);
-  button.classList.toggle('text-gray-400', !canSave);
-  button.classList.toggle('cursor-not-allowed', !canSave);
-  button.classList.toggle('opacity-70', !canSave);
+  button.disabled = !canClick;
+  button.classList.toggle('bg-[#2d7dd2]', canClick);
+  button.classList.toggle('text-white', canClick);
+  button.classList.toggle('bg-gray-200', !canClick);
+  button.classList.toggle('text-gray-400', !canClick);
+  button.classList.toggle('cursor-not-allowed', !canClick);
+  button.classList.toggle('opacity-70', !canClick);
 
-  if (!msg) return;
-
-  if (canSave) {
-    msg.classList.add('hidden');
+  if (isSaving) {
+    button.textContent = '저장 중입니다...';
+    setSaveFeedingRecordMessage('계산 결과를 저장하는 중입니다...', 'blue');
     return;
   }
 
-  if (!state.lastResult) {
-    msg.textContent = '먼저 급여량을 계산해 주세요.';
+  button.textContent = '💾 이 계산 결과 저장하기';
+
+  if (!hasResult) {
+    setSaveFeedingRecordMessage('먼저 급여량을 계산해 주세요.', 'gray');
   } else if (!state.currentUser) {
-    msg.textContent = '로그인 후 계산 결과를 저장할 수 있습니다.';
-  } else if (!state.selectedSavedCatId) {
-    msg.textContent = '내 고양이를 불러온 뒤 계산 결과를 저장할 수 있습니다.';
+    setSaveFeedingRecordMessage('로그인하면 현재 계산 결과를 저장할 수 있습니다.', 'gray');
+  } else {
+    setSaveFeedingRecordMessage('저장된 고양이를 불러오거나, 현재 입력값으로 새 고양이 기록을 만들 수 있습니다.', 'gray');
   }
-  msg.classList.remove('hidden');
 }
 
-function handleSaveFeedingRecord() {
-  const msg = document.getElementById('saveFeedingRecordMsg');
+async function createCatFromCurrentInput(userId, catInput) {
+  const { count, error: countError } = await sb
+    .from('cats')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId);
+
+  if (countError) throw countError;
+  if ((count || 0) >= 20) {
+    throw new Error('현재 계정에는 고양이를 최대 20마리까지 저장할 수 있습니다.');
+  }
+
+  const { data, error } = await sb
+    .from('cats')
+    .insert({
+      user_id: userId,
+      name: catInput.name,
+      birth_date: catInput.birthDate,
+      neutered: catInput.neutered
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  if (!data?.id) throw new Error('고양이 프로필 생성 결과를 확인할 수 없습니다.');
+
+  await upsertWeightRecord(data.id, userId, catInput.weightKg);
+  return data.id;
+}
+
+async function upsertWeightRecord(catId, userId, weightKg) {
+  const recordedDate = getTodayDateString();
   const payload = {
-    userId: state.currentUser?.id || null,
-    catId: state.selectedSavedCatId,
-    result: state.lastResult
+    cat_id: catId,
+    user_id: userId,
+    weight_kg: weightKg,
+    recorded_date: recordedDate
   };
 
-  console.log('feeding_records 저장 로직은 다음 단계에서 구현 예정입니다.', payload);
-  if (msg) {
-    msg.textContent = '급여 기록 저장 기능은 다음 단계에서 연결될 예정입니다.';
-    msg.classList.remove('hidden');
+  const { error: upsertError } = await sb
+    .from('weight_records')
+    .upsert(payload, { onConflict: 'cat_id,recorded_date' });
+
+  if (!upsertError) return;
+
+  const { data: existingRows, error: selectError } = await sb
+    .from('weight_records')
+    .select('cat_id')
+    .eq('cat_id', catId)
+    .eq('user_id', userId)
+    .eq('recorded_date', recordedDate)
+    .limit(1);
+
+  if (selectError) throw upsertError;
+
+  if (existingRows && existingRows.length > 0) {
+    const { error: updateError } = await sb
+      .from('weight_records')
+      .update({ weight_kg: weightKg })
+      .eq('cat_id', catId)
+      .eq('user_id', userId)
+      .eq('recorded_date', recordedDate);
+
+    if (updateError) throw updateError;
+    return;
+  }
+
+  const { error: insertError } = await sb
+    .from('weight_records')
+    .insert(payload);
+
+  if (insertError) throw insertError;
+}
+
+async function insertFeedingRecordWithFallback(payloads) {
+  let lastError = null;
+
+  for (const payload of payloads) {
+    const { error } = await sb
+      .from('feeding_records')
+      .insert(payload);
+
+    if (!error) return;
+    lastError = error;
+  }
+
+  throw lastError || new Error('계산 결과 저장에 실패했습니다.');
+}
+
+async function saveFeedingRecord(catId, currentResult) {
+  const userId = state.currentUser.id;
+  const catInput = getCurrentCatInput();
+  const common = {
+    user_id: userId,
+    cat_id: catId
+  };
+
+  await upsertWeightRecord(catId, userId, catInput.weightKg);
+
+  await insertFeedingRecordWithFallback([
+    {
+      ...common,
+      der_kcal: currentResult.DER,
+      dry_ratio: currentResult.dryRatio,
+      wet_ratio: currentResult.wetRatio,
+      dry_feeds: currentResult.건사료_결과,
+      wet_feeds: currentResult.습식사료_결과
+    },
+    {
+      ...common,
+      result_data: currentResult
+    },
+    {
+      ...common,
+      result_json: currentResult
+    },
+    {
+      ...common,
+      payload: currentResult
+    },
+    {
+      ...common,
+      result: currentResult
+    }
+  ]);
+}
+
+async function handleSaveFeedingRecord() {
+  if (state.isSavingFeedingRecord) return;
+
+  state.isSavingFeedingRecord = true;
+  updateSaveFeedingButtonVisibility();
+  let finalMessage = null;
+  let finalTone = 'blue';
+
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    state.currentUser = user || null;
+
+    if (!user) {
+      finalMessage = '로그인하면 현재 계산 결과를 저장할 수 있습니다.';
+      finalTone = 'gray';
+      openAuthSheet?.();
+      return;
+    }
+
+    if (!state.lastResult) {
+      finalMessage = '먼저 계산을 완료해 주세요.';
+      finalTone = 'gray';
+      return;
+    }
+
+    const catInput = getCurrentCatInput();
+    if (!isValidCatInput(catInput)) {
+      finalMessage = '고양이 이름, 생년월일, 중성화 여부, 체중을 확인해 주세요.';
+      finalTone = 'red';
+      return;
+    }
+
+    let catId = state.selectedSavedCatId;
+
+    if (!catId) {
+      catId = await createCatFromCurrentInput(user.id, catInput);
+      state.selectedSavedCatId = catId;
+      await saveFeedingRecord(catId, state.lastResult);
+      finalMessage = '현재 입력값으로 고양이 프로필을 만들고 계산 결과를 저장했습니다.';
+      finalTone = 'blue';
+      return;
+    }
+
+    await saveFeedingRecord(catId, state.lastResult);
+    finalMessage = '계산 결과가 저장되었습니다.';
+    finalTone = 'blue';
+  } catch (error) {
+    finalMessage = error.message || '계산 결과 저장에 실패했습니다.';
+    finalTone = 'red';
+  } finally {
+    state.isSavingFeedingRecord = false;
+    updateSaveFeedingButtonVisibility();
+    if (finalMessage) setSaveFeedingRecordMessage(finalMessage, finalTone);
   }
 }
