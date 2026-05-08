@@ -241,6 +241,7 @@ function calculate() {
   document.getElementById('waterResult').classList.add('hidden');
 
   state.lastResult = { DER, dryRatio, wetRatio, ...resultData };
+  state.lastSavedResultKey = null;
   updateSaveFeedingButtonVisibility();
   document.getElementById('resultArea').scrollIntoView({ behavior: 'smooth' });
 }

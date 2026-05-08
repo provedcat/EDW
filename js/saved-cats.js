@@ -62,6 +62,11 @@ function isValidCatInput(catInput) {
   );
 }
 
+function getFeedingRecordSaveKey(catId, currentResult) {
+  if (!catId || !currentResult) return null;
+  return JSON.stringify({ catId, result: currentResult });
+}
+
 async function fetchMyCats(userId) {
   const { data, error } = await sb
     .from('cats')
@@ -173,7 +178,9 @@ function updateSaveFeedingButtonVisibility() {
 
   const hasResult = !!state.lastResult;
   const isSaving = !!state.isSavingFeedingRecord;
-  const canClick = hasResult && !isSaving;
+  const currentSaveKey = getFeedingRecordSaveKey(state.selectedSavedCatId, state.lastResult);
+  const isAlreadySaved = !!(hasResult && currentSaveKey && currentSaveKey === state.lastSavedResultKey);
+  const canClick = hasResult && !isSaving && !isAlreadySaved;
 
   button.classList.toggle('hidden', !hasResult);
   button.disabled = !canClick;
@@ -187,6 +194,12 @@ function updateSaveFeedingButtonVisibility() {
   if (isSaving) {
     button.textContent = '저장 중입니다...';
     setSaveFeedingRecordMessage('계산 결과를 저장하는 중입니다...', 'blue');
+    return;
+  }
+
+  if (isAlreadySaved) {
+    button.textContent = '저장 완료';
+    setSaveFeedingRecordMessage('', 'gray');
     return;
   }
 
@@ -204,6 +217,21 @@ function updateSaveFeedingButtonVisibility() {
 }
 
 async function createCatFromCurrentInput(userId, catInput) {
+  const { data: existingCats, error: existingError } = await sb
+    .from('cats')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('name', catInput.name)
+    .eq('birth_date', catInput.birthDate)
+    .eq('neutered', catInput.neutered)
+    .order('created_at', { ascending: true })
+    .limit(1);
+
+  if (existingError) throw existingError;
+  if (existingCats?.[0]?.id) {
+    return { id: existingCats[0].id, reusedExisting: true };
+  }
+
   const { count, error: countError } = await sb
     .from('cats')
     .select('id', { count: 'exact', head: true })
@@ -229,7 +257,7 @@ async function createCatFromCurrentInput(userId, catInput) {
   if (!data?.id) throw new Error('고양이 프로필 생성 결과를 확인할 수 없습니다.');
 
   await upsertWeightRecord(data.id, userId, catInput.weightKg);
-  return data.id;
+  return { id: data.id, reusedExisting: false };
 }
 
 async function upsertWeightRecord(catId, userId, weightKg) {
@@ -276,59 +304,23 @@ async function upsertWeightRecord(catId, userId, weightKg) {
   if (insertError) throw insertError;
 }
 
-// TODO: feeding_records 테이블 스키마가 확정되면 fallback 후보를 제거하고
-// 실제 컬럼 구조에 맞는 단일 payload insert로 정리합니다.
-async function insertFeedingRecordWithFallback(payloads) {
-  let lastError = null;
-
-  for (const payload of payloads) {
-    const { error } = await sb
-      .from('feeding_records')
-      .insert(payload);
-
-    if (!error) return;
-    lastError = error;
-  }
-
-  throw lastError || new Error('계산 결과 저장에 실패했습니다.');
-}
-
 async function saveFeedingRecord(catId, currentResult) {
   const userId = state.currentUser.id;
   const catInput = getCurrentCatInput();
-  const common = {
-    user_id: userId,
-    cat_id: catId
-  };
+  const recordedDate = getTodayDateString();
 
   await upsertWeightRecord(catId, userId, catInput.weightKg);
 
-  await insertFeedingRecordWithFallback([
-    {
-      ...common,
-      der_kcal: currentResult.DER,
-      dry_ratio: currentResult.dryRatio,
-      wet_ratio: currentResult.wetRatio,
-      dry_feeds: currentResult.건사료_결과,
-      wet_feeds: currentResult.습식사료_결과
-    },
-    {
-      ...common,
+  const { error } = await sb
+    .from('feeding_records')
+    .insert({
+      user_id: userId,
+      cat_id: catId,
+      recorded_date: recordedDate,
       result_data: currentResult
-    },
-    {
-      ...common,
-      result_json: currentResult
-    },
-    {
-      ...common,
-      payload: currentResult
-    },
-    {
-      ...common,
-      result: currentResult
-    }
-  ]);
+    });
+
+  if (error) throw error;
 }
 
 async function handleSaveFeedingRecord() {
@@ -366,15 +358,20 @@ async function handleSaveFeedingRecord() {
     let catId = state.selectedSavedCatId;
 
     if (!catId) {
-      catId = await createCatFromCurrentInput(user.id, catInput);
+      const catSaveResult = await createCatFromCurrentInput(user.id, catInput);
+      catId = catSaveResult.id;
       state.selectedSavedCatId = catId;
       await saveFeedingRecord(catId, state.lastResult);
-      finalMessage = '현재 입력값으로 고양이 프로필을 만들고 계산 결과를 저장했습니다.';
+      state.lastSavedResultKey = getFeedingRecordSaveKey(catId, state.lastResult);
+      finalMessage = catSaveResult.reusedExisting
+        ? '기존 고양이 프로필을 찾아 계산 결과를 저장했습니다.'
+        : '현재 입력값으로 고양이 프로필을 만들고 계산 결과를 저장했습니다.';
       finalTone = 'blue';
       return;
     }
 
     await saveFeedingRecord(catId, state.lastResult);
+    state.lastSavedResultKey = getFeedingRecordSaveKey(catId, state.lastResult);
     finalMessage = '계산 결과가 저장되었습니다.';
     finalTone = 'blue';
   } catch (error) {
