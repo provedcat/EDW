@@ -126,10 +126,15 @@ async function loadMyCats() {
 
 async function selectSavedCat(cat) {
   state.selectedSavedCatId = cat.id;
+  state.isApplyingSavedCat = true;
 
-  document.getElementById('catName').value = cat.name || '';
-  document.getElementById('catBirth').value = cat.birth_date || '';
-  document.getElementById('catNeutered').value = cat.neutered ? 'true' : 'false';
+  try {
+    document.getElementById('catName').value = cat.name || '';
+    document.getElementById('catBirth').value = cat.birth_date || '';
+    document.getElementById('catNeutered').value = cat.neutered ? 'true' : 'false';
+  } finally {
+    state.isApplyingSavedCat = false;
+  }
 
   const weightInput = document.getElementById('catWeight');
   weightInput.value = '';
@@ -191,8 +196,10 @@ function updateSaveFeedingButtonVisibility() {
     setSaveFeedingRecordMessage('먼저 급여량을 계산해 주세요.', 'gray');
   } else if (!state.currentUser) {
     setSaveFeedingRecordMessage('로그인하면 현재 계산 결과를 저장할 수 있습니다.', 'gray');
+  } else if (state.selectedSavedCatId) {
+    setSaveFeedingRecordMessage('', 'gray');
   } else {
-    setSaveFeedingRecordMessage('저장된 고양이를 불러오거나, 현재 입력값으로 새 고양이 기록을 만들 수 있습니다.', 'gray');
+    setSaveFeedingRecordMessage('현재 입력값으로 새 고양이 프로필을 만들고 계산 결과를 저장할 수 있습니다.', 'gray');
   }
 }
 
@@ -269,6 +276,8 @@ async function upsertWeightRecord(catId, userId, weightKg) {
   if (insertError) throw insertError;
 }
 
+// TODO: feeding_records 테이블 스키마가 확정되면 fallback 후보를 제거하고
+// 실제 컬럼 구조에 맞는 단일 payload insert로 정리합니다.
 async function insertFeedingRecordWithFallback(payloads) {
   let lastError = null;
 
