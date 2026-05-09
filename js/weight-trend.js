@@ -98,7 +98,7 @@ async function loadTrendCats() {
         </span>
       </button>
       <button type="button" data-cat-menu-button="${escapeHtml(cat.id)}" onclick="event.stopPropagation(); toggleTrendCatMenu(this.dataset.catMenuButton)"
-        class="absolute right-3 top-1/2 -translate-y-1/2 flex sm:pointer-events-none sm:opacity-0 sm:group-hover:pointer-events-auto sm:group-hover:opacity-100 sm:group-focus-within:pointer-events-auto sm:group-focus-within:opacity-100 items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm hover:text-[#2d7dd2] hover:border-[#2d7dd2] transition-all"
+        class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm hover:text-[#2d7dd2] hover:border-[#2d7dd2] transition-all"
         aria-label="고양이 메뉴 열기">
         …
       </button>
