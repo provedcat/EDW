@@ -216,20 +216,69 @@ function updateSaveFeedingButtonVisibility() {
   }
 }
 
-async function createCatFromCurrentInput(userId, catInput) {
-  const { data: existingCats, error: existingError } = await sb
+const DUPLICATE_CAT_NAME_BIRTH_DATE_MESSAGE = '같은 이름의 고양이가 이미 있습니다. 생년월일이 다르면 이름을 다르게 입력해 주세요.';
+
+async function findExistingCatByName(userId, catInput) {
+  const { data, error } = await sb
     .from('cats')
-    .select('id')
+    .select('id, neutered, birth_date')
     .eq('user_id', userId)
     .eq('name', catInput.name)
-    .eq('birth_date', catInput.birthDate)
-    .eq('neutered', catInput.neutered)
     .order('created_at', { ascending: true })
     .limit(1);
 
-  if (existingError) throw existingError;
-  if (existingCats?.[0]?.id) {
-    return { id: existingCats[0].id, reusedExisting: true };
+  if (error) throw error;
+  return data?.[0] || null;
+}
+
+async function updateCatMutableFields(catId, userId, catInput) {
+  const { data: cats, error: selectError } = await sb
+    .from('cats')
+    .select('id, neutered, birth_date')
+    .eq('id', catId)
+    .eq('user_id', userId)
+    .limit(1);
+
+  if (selectError) throw selectError;
+
+  const cat = cats?.[0];
+  if (!cat?.id) {
+    throw new Error('고양이 프로필을 찾을 수 없습니다.');
+  }
+
+  const updates = {};
+  if (cat.neutered !== catInput.neutered) {
+    updates.neutered = catInput.neutered;
+  }
+
+  if (!cat.birth_date && catInput.birthDate) {
+    updates.birth_date = catInput.birthDate;
+  }
+
+  if (Object.keys(updates).length === 0) return cat;
+
+  const { data: updatedCats, error: updateError } = await sb
+    .from('cats')
+    .update(updates)
+    .eq('id', catId)
+    .eq('user_id', userId)
+    .select('id, neutered, birth_date')
+    .limit(1);
+
+  if (updateError) throw updateError;
+  return updatedCats?.[0] || { ...cat, ...updates };
+}
+
+async function createCatFromCurrentInput(userId, catInput) {
+  const existingCat = await findExistingCatByName(userId, catInput);
+
+  if (existingCat?.id) {
+    if (existingCat.birth_date && catInput.birthDate && existingCat.birth_date !== catInput.birthDate) {
+      throw new Error(DUPLICATE_CAT_NAME_BIRTH_DATE_MESSAGE);
+    }
+
+    await updateCatMutableFields(existingCat.id, userId, catInput);
+    return { id: existingCat.id, reusedExisting: true };
   }
 
   const { count, error: countError } = await sb
@@ -374,6 +423,7 @@ async function handleSaveFeedingRecord() {
         ? '기존 고양이 프로필을 찾아 계산 결과를 저장했습니다.'
         : '현재 입력값으로 고양이 프로필을 만들고 계산 결과를 저장했습니다.';
     } else {
+      await updateCatMutableFields(catId, user.id, catInput);
       await saveFeedingRecord(catId, state.lastResult);
       state.lastSavedResultKey = getFeedingRecordSaveKey(catId, state.lastResult);
       finalMessage = '계산 결과가 저장되었습니다.';
@@ -382,7 +432,9 @@ async function handleSaveFeedingRecord() {
     finalTone = 'blue';
     shouldCloseShareModal = true;
   } catch (error) {
-    finalMessage = `저장에 실패했습니다. 데이터베이스 테이블 구조 또는 권한 정책을 확인해 주세요: ${error.message || error}`;
+    finalMessage = error.message === DUPLICATE_CAT_NAME_BIRTH_DATE_MESSAGE
+      ? error.message
+      : `저장에 실패했습니다. 데이터베이스 테이블 구조 또는 권한 정책을 확인해 주세요: ${error.message || error}`;
     finalTone = 'red';
   } finally {
     state.isSavingFeedingRecord = false;
