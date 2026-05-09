@@ -89,13 +89,26 @@ async function loadTrendCats() {
   }
 
   list.innerHTML = cats.map(cat => `
-    <button type="button" data-cat-id="${escapeHtml(cat.id)}"
-      class="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-left hover:border-[#2d7dd2] hover:bg-blue-50 transition-colors">
-      <span class="block text-sm font-black text-gray-800">${escapeHtml(cat.name || '이름 없음')}</span>
-      <span class="block text-xs font-bold text-gray-400 mt-1">
-        ${escapeHtml(cat.birth_date || '생년월일 없음')} · ${cat.neutered ? '중성화 O' : '중성화 X'}
-      </span>
-    </button>
+    <div class="relative group">
+      <button type="button" data-cat-id="${escapeHtml(cat.id)}"
+        class="w-full p-4 pr-14 bg-gray-50 border border-gray-100 rounded-2xl text-left hover:border-[#2d7dd2] hover:bg-blue-50 transition-colors">
+        <span class="block text-sm font-black text-gray-800">${escapeHtml(cat.name || '이름 없음')}</span>
+        <span class="block text-xs font-bold text-gray-400 mt-1">
+          ${escapeHtml(cat.birth_date || '생년월일 없음')} · ${cat.neutered ? '중성화 O' : '중성화 X'}
+        </span>
+      </button>
+      <button type="button" data-cat-menu-button="${escapeHtml(cat.id)}" onclick="event.stopPropagation(); toggleTrendCatMenu(this.dataset.catMenuButton)"
+        class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm hover:text-[#2d7dd2] hover:border-[#2d7dd2] transition-all"
+        aria-label="고양이 메뉴 열기">
+        …
+      </button>
+      <div data-cat-menu="${escapeHtml(cat.id)}" class="hidden absolute right-3 top-12 z-20 min-w-[120px] rounded-xl border border-gray-100 bg-white p-1 shadow-lg">
+        <button type="button" data-cat-delete="${escapeHtml(cat.id)}" onclick="event.stopPropagation(); deleteTrendCat(this.dataset.catDelete)"
+          class="w-full rounded-lg px-3 py-2 text-left text-xs font-black text-red-500 hover:bg-red-50 transition-colors">
+          삭제하기
+        </button>
+      </div>
+    </div>
   `).join('');
 
   list._trendCats = cats;
@@ -103,11 +116,77 @@ async function loadTrendCats() {
     const button = event.target.closest('[data-cat-id]');
     if (!button) return;
 
+    closeTrendCatMenus();
     const cat = list._trendCats.find(item => String(item.id) === String(button.dataset.catId));
     if (cat) selectTrendCat(cat);
   };
 
   setWeightTrendMessage('체중 추이를 확인할 고양이를 선택해주세요.', 'gray');
+}
+
+function closeTrendCatMenus() {
+  document.querySelectorAll('[data-cat-menu]').forEach(menu => {
+    menu.classList.add('hidden');
+  });
+}
+
+function toggleTrendCatMenu(catId) {
+  const menu = Array.from(document.querySelectorAll('[data-cat-menu]'))
+    .find(item => String(item.dataset.catMenu) === String(catId));
+  if (!menu) return;
+
+  const shouldOpen = menu.classList.contains('hidden');
+  closeTrendCatMenus();
+  menu.classList.toggle('hidden', !shouldOpen);
+}
+
+async function deleteTrendCat(catId) {
+  if (!state.currentUser) {
+    setWeightTrendMessage('로그인 후 삭제할 수 있습니다.', 'red');
+    return;
+  }
+
+  const confirmed = confirm('이 고양이 프로필과 연결된 체중 기록, 급여 기록이 함께 삭제됩니다. 정말 삭제할까요?');
+  if (!confirmed) return;
+
+  closeTrendCatMenus();
+  setWeightTrendMessage('고양이 기록을 삭제하는 중입니다...', 'blue');
+
+  const userId = state.currentUser.id;
+
+  try {
+    const { error: feedingError } = await sb
+      .from('feeding_records')
+      .delete()
+      .eq('cat_id', catId)
+      .eq('user_id', userId);
+
+    if (feedingError) throw new Error(`급여 기록 삭제 실패: ${feedingError.message}`);
+
+    const { error: weightError } = await sb
+      .from('weight_records')
+      .delete()
+      .eq('cat_id', catId)
+      .eq('user_id', userId);
+
+    if (weightError) throw new Error(`체중 기록 삭제 실패: ${weightError.message}`);
+
+    const { error: catError } = await sb
+      .from('cats')
+      .delete()
+      .eq('id', catId)
+      .eq('user_id', userId);
+
+    if (catError) throw new Error(`고양이 프로필 삭제 실패: ${catError.message}`);
+  } catch (error) {
+    setWeightTrendMessage(`삭제 실패: ${error.message} 일부 기록이 이미 삭제되었을 수 있으니 새로고침 후 확인해 주세요.`, 'red');
+    return;
+  }
+
+  state.selectedTrendCatId = null;
+  resetWeightTrendView('고양이를 선택하면 체중 그래프가 표시됩니다.');
+  await loadTrendCats();
+  setWeightTrendMessage('고양이 프로필과 연결 기록을 삭제했습니다.', 'blue');
 }
 
 async function selectTrendCat(cat) {
@@ -279,6 +358,9 @@ function renderWeightTrendSummary(records) {
 
 window.refreshWeightTrendPage = refreshWeightTrendPage;
 window.loadTrendCats = loadTrendCats;
+window.toggleTrendCatMenu = toggleTrendCatMenu;
+window.closeTrendCatMenus = closeTrendCatMenus;
+window.deleteTrendCat = deleteTrendCat;
 window.selectTrendCat = selectTrendCat;
 window.loadWeightRecordsForCat = loadWeightRecordsForCat;
 window.renderWeightTrendChart = renderWeightTrendChart;
