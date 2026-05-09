@@ -93,9 +93,42 @@ async function handleGoogleOAuthLogin() {
 }
 
 async function handleLogout() {
-  await sb.auth.signOut();
+  const logoutButton = document.querySelector('#loggedInAuth button[onclick="handleLogout()"]');
+  const originalText = logoutButton?.textContent;
+
+  if (logoutButton) {
+    logoutButton.disabled = true;
+    logoutButton.textContent = '로그아웃 중...';
+  }
+
+  setAuthMessage('로그아웃 중입니다...', 'blue');
+
+  const { error } = await sb.auth.signOut();
+
+  if (error) {
+    console.error('Logout failed:', error);
+    setAuthMessage(`로그아웃 실패: ${error.message}`, 'red');
+
+    if (logoutButton) {
+      logoutButton.disabled = false;
+      logoutButton.textContent = originalText || '로그아웃';
+    }
+    return;
+  }
+
+  state.currentUser = null;
+  state.selectedSavedCatId = null;
+  state.selectedTrendCatId = null;
+  state.lastSavedResultKey = null;
+
   setAuthMessage('', 'gray');
   await refreshAuthUI();
+
+  if (typeof refreshWeightTrendPage === 'function') {
+    refreshWeightTrendPage();
+  }
+
+  closeAuthSheet();
 }
 
 async function checkLoginState() {
