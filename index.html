@@ -296,6 +296,13 @@
   </main>
 </div>
 
+<div id="pwaInstallPrompt" class="pwa-install-prompt hidden" aria-live="polite">
+  <button id="pwaInstallBtn" type="button" class="pwa-install-btn">
+    홈 화면에 추가
+  </button>
+  <p id="pwaInstallMsg" class="pwa-install-msg hidden"></p>
+</div>
+
 <div id="authSheet" class="hidden fixed inset-0 z-[9998]">
   <div class="absolute inset-0 bg-black/30" onclick="closeAuthSheet()"></div>
   <div class="absolute left-0 right-0 bottom-0 mx-auto max-w-[640px] bg-white rounded-t-3xl p-6 space-y-4 shadow-2xl">
@@ -555,6 +562,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 </script>
+<script src="js/pwa-install.js"></script>
 <script src="js/calculator.js"></script>
 <script src="js/feed-search.js"></script>
 <script src="js/saved-cats.js"></script>

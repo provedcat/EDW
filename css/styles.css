@@ -197,3 +197,62 @@
       border:none; border-radius:16px; cursor:pointer;
     }
     .share-btn-save:active, .share-btn-kakao:active { opacity:0.8; }
+
+/* 모바일 PWA 설치 안내 */
+.pwa-install-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 50;
+  width: min(92vw, 320px);
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.pwa-install-prompt:not(.hidden) {
+  display: flex;
+}
+
+.pwa-install-btn {
+  padding: 8px 13px;
+  border: 1px solid rgba(45, 125, 210, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  color: rgba(45, 125, 210, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.pwa-install-btn:active {
+  transform: translateY(1px);
+  opacity: 0.82;
+}
+
+.pwa-install-msg {
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.82);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  pointer-events: none;
+}
+
+@media (min-width: 768px) {
+  .pwa-install-prompt:not(.hidden) {
+    display: none;
+  }
+}
