@@ -1,6 +1,7 @@
 (function () {
   const IOS_INSTALL_MESSAGE = 'Safari에서 공유 버튼을 누른 뒤 “홈 화면에 추가”를 선택해주세요.';
   const ANDROID_INSTALL_MESSAGE = '앱 설치 창이 뜨면 설치를 눌러주세요.';
+  const FALLBACK_INSTALL_MESSAGE = 'Chrome 메뉴에서 “앱 설치” 또는 “홈 화면에 추가”를 선택해주세요.';
 
   let deferredInstallPrompt = null;
 
@@ -32,7 +33,7 @@
     const promptEl = document.getElementById('pwaInstallPrompt');
     if (!promptEl) return;
 
-    const shouldShow = isMobileViewport() && !isStandaloneMode() && (deferredInstallPrompt || isIosSafari());
+    const shouldShow = isMobileViewport() && !isStandaloneMode();
     promptEl.classList.toggle('hidden', !shouldShow);
 
     if (!shouldShow) {
@@ -60,7 +61,10 @@
 
     if (isIosSafari()) {
       setInstallMessage(IOS_INSTALL_MESSAGE);
+      return;
     }
+
+    setInstallMessage(FALLBACK_INSTALL_MESSAGE);
   }
 
   window.addEventListener('beforeinstallprompt', (event) => {
