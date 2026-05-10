@@ -1,16 +1,30 @@
 (function () {
-  const IOS_INSTALL_MESSAGE = 'Safari에서 공유 버튼을 누른 뒤 “홈 화면에 추가”를 선택해주세요.';
-  const ANDROID_INSTALL_MESSAGE = '앱 설치 창이 뜨면 설치를 눌러주세요.';
-  const FALLBACK_INSTALL_MESSAGE = 'Chrome 메뉴에서 “앱 설치” 또는 “홈 화면에 추가”를 선택해주세요.';
+  const IOS_INSTALL_MESSAGE = 'Safari 공유 메뉴에서 “홈 화면에 추가”를 선택해 주세요.';
+  const FALLBACK_INSTALL_MESSAGE = '브라우저 메뉴에서 “홈 화면에 추가”를 선택해 주세요.';
+  const INSTALL_UNAVAILABLE_MESSAGE = '지금은 브라우저 메뉴에서 “홈 화면에 추가”를 선택해 주세요.';
+  const HIDE_STORAGE_KEY = 'provedcat:pwa-install-hidden-until';
+  const HIDE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+  const MESSAGE_HIDE_DELAY_MS = 4000;
 
   let deferredInstallPrompt = null;
+  let fallbackHideTimer = null;
+  let sessionHidden = false;
 
   function isStandaloneMode() {
     return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
   }
 
-  function isMobileViewport() {
-    return window.matchMedia('(max-width: 767px)').matches;
+  function isMobileBrowser() {
+    const ua = window.navigator.userAgent || '';
+    const uaDataMobile = window.navigator.userAgentData?.mobile === true;
+    const mobileUA = /Android|iPhone|iPad|iPod|Mobile|SamsungBrowser/i.test(ua);
+    const touchDevice = window.matchMedia('(pointer: coarse)').matches;
+
+    return uaDataMobile || mobileUA || (touchDevice && window.matchMedia('(max-width: 767px)').matches);
+  }
+
+  function isSamsungBrowser() {
+    return /SamsungBrowser/i.test(window.navigator.userAgent || '');
   }
 
   function isIosSafari() {
@@ -21,6 +35,28 @@
     return isIosDevice && isSafari;
   }
 
+  function getHiddenUntil() {
+    try {
+      return Number(window.localStorage.getItem(HIDE_STORAGE_KEY)) || 0;
+    } catch (error) {
+      return 0;
+    }
+  }
+
+  function isTemporarilyHidden() {
+    return sessionHidden || Date.now() < getHiddenUntil();
+  }
+
+  function hideForAWhile() {
+    sessionHidden = true;
+
+    try {
+      window.localStorage.setItem(HIDE_STORAGE_KEY, String(Date.now() + HIDE_DURATION_MS));
+    } catch (error) {
+      // localStorage가 막힌 환경에서는 현재 세션에서만 버튼을 숨깁니다.
+    }
+  }
+
   function setInstallMessage(message) {
     const messageEl = document.getElementById('pwaInstallMsg');
     if (!messageEl) return;
@@ -29,17 +65,29 @@
     messageEl.classList.remove('hidden');
   }
 
+  function clearInstallMessage() {
+    const messageEl = document.getElementById('pwaInstallMsg');
+    if (messageEl) messageEl.classList.add('hidden');
+  }
+
   function updateInstallPromptVisibility() {
     const promptEl = document.getElementById('pwaInstallPrompt');
     if (!promptEl) return;
 
-    const shouldShow = isMobileViewport() && !isStandaloneMode();
+    const shouldShow = !isStandaloneMode() && !isTemporarilyHidden() && (deferredInstallPrompt || isMobileBrowser());
     promptEl.classList.toggle('hidden', !shouldShow);
 
-    if (!shouldShow) {
-      const messageEl = document.getElementById('pwaInstallMsg');
-      if (messageEl) messageEl.classList.add('hidden');
-    }
+    if (!shouldShow) clearInstallMessage();
+  }
+
+  function showFallbackAndTemporarilyHide(message = FALLBACK_INSTALL_MESSAGE) {
+    window.clearTimeout(fallbackHideTimer);
+    setInstallMessage(message);
+    hideForAWhile();
+
+    fallbackHideTimer = window.setTimeout(() => {
+      updateInstallPromptVisibility();
+    }, MESSAGE_HIDE_DELAY_MS);
   }
 
   async function handleInstallClick() {
@@ -48,23 +96,55 @@
       return;
     }
 
-    if (deferredInstallPrompt) {
-      setInstallMessage(ANDROID_INSTALL_MESSAGE);
-      deferredInstallPrompt.prompt();
-
-      await deferredInstallPrompt.userChoice;
+    if (deferredInstallPrompt && isSamsungBrowser()) {
       deferredInstallPrompt = null;
+      showFallbackAndTemporarilyHide(FALLBACK_INSTALL_MESSAGE);
+      return;
+    }
 
-      updateInstallPromptVisibility();
+    if (deferredInstallPrompt) {
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      hideForAWhile();
+
+      try {
+        promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+
+        if (choice?.outcome === 'accepted') {
+          clearInstallMessage();
+        } else {
+          setInstallMessage(FALLBACK_INSTALL_MESSAGE);
+        }
+      } catch (error) {
+        setInstallMessage(FALLBACK_INSTALL_MESSAGE);
+      }
+
+      window.setTimeout(updateInstallPromptVisibility, MESSAGE_HIDE_DELAY_MS);
       return;
     }
 
     if (isIosSafari()) {
-      setInstallMessage(IOS_INSTALL_MESSAGE);
+      showFallbackAndTemporarilyHide(IOS_INSTALL_MESSAGE);
       return;
     }
 
-    setInstallMessage(FALLBACK_INSTALL_MESSAGE);
+    showFallbackAndTemporarilyHide(isMobileBrowser() ? FALLBACK_INSTALL_MESSAGE : INSTALL_UNAVAILABLE_MESSAGE);
+  }
+
+  function handleInstallDismiss() {
+    hideForAWhile();
+    updateInstallPromptVisibility();
+  }
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' }).catch((error) => {
+        console.warn('ProvedCat service worker registration failed:', error);
+      });
+    });
   }
 
   window.addEventListener('beforeinstallprompt', (event) => {
@@ -75,12 +155,17 @@
 
   window.addEventListener('appinstalled', () => {
     deferredInstallPrompt = null;
+    hideForAWhile();
     updateInstallPromptVisibility();
   });
 
   window.addEventListener('DOMContentLoaded', () => {
     const installButton = document.getElementById('pwaInstallBtn');
+    const dismissButton = document.getElementById('pwaInstallDismissBtn');
+
     if (installButton) installButton.addEventListener('click', handleInstallClick);
+    if (dismissButton) dismissButton.addEventListener('click', handleInstallDismiss);
+
     updateInstallPromptVisibility();
   });
 
@@ -92,4 +177,6 @@
   } else if (standaloneMedia.addListener) {
     standaloneMedia.addListener(updateInstallPromptVisibility);
   }
+
+  registerServiceWorker();
 }());

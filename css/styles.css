@@ -202,8 +202,8 @@
 .pwa-install-prompt {
   position: fixed;
   left: 50%;
-  bottom: calc(12px + env(safe-area-inset-bottom));
-  z-index: 50;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  z-index: 9997;
   width: min(92vw, 320px);
   transform: translateX(-50%);
   display: none;
@@ -215,6 +215,14 @@
 
 .pwa-install-prompt:not(.hidden) {
   display: flex;
+}
+
+.pwa-install-actions {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
 }
 
 .pwa-install-btn {
@@ -230,6 +238,28 @@
   backdrop-filter: blur(10px);
   cursor: pointer;
   pointer-events: auto;
+}
+
+.pwa-install-dismiss-btn {
+  position: absolute;
+  top: -8px;
+  right: -10px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: rgba(100, 116, 139, 0.72);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 16px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+}
+
+.pwa-install-dismiss-btn:active {
+  transform: translateY(1px);
+  opacity: 0.82;
 }
 
 .pwa-install-btn:active {

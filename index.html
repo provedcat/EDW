@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ProvedCat - 고양이 영양 설계</title>
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="192x192" href="./icons/apple-touch-icon.png">
   <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#2d7dd2">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -297,9 +298,12 @@
 </div>
 
 <div id="pwaInstallPrompt" class="pwa-install-prompt hidden" aria-live="polite">
-  <button id="pwaInstallBtn" type="button" class="pwa-install-btn">
-    홈 화면에 추가
-  </button>
+  <div class="pwa-install-actions">
+    <button id="pwaInstallBtn" type="button" class="pwa-install-btn">
+      홈 화면에 추가
+    </button>
+    <button id="pwaInstallDismissBtn" type="button" class="pwa-install-dismiss-btn" aria-label="홈 화면 추가 안내 숨기기">×</button>
+  </div>
   <p id="pwaInstallMsg" class="pwa-install-msg hidden"></p>
 </div>
 
