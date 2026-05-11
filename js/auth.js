@@ -36,9 +36,9 @@ async function refreshAuthUI() {
   const box = document.getElementById('savedCatLoadBox');
   const loggedOutAuth = document.getElementById('loggedOutAuth');
   const loggedInAuth = document.getElementById('loggedInAuth');
-  const userEmail = document.getElementById('userEmail');
+  const userIdentifier = document.getElementById('userIdentifier');
   const authOpenBtn = document.getElementById('authOpenBtn');
-  if (!box || !loggedOutAuth || !loggedInAuth || !userEmail) return;
+  if (!box || !loggedOutAuth || !loggedInAuth || !userIdentifier) return;
 
   const user = await getCurrentUser();
   if (!user) {
@@ -47,7 +47,7 @@ async function refreshAuthUI() {
     box.classList.add('hidden');
     loggedOutAuth.classList.remove('hidden');
     loggedInAuth.classList.add('hidden');
-    userEmail.textContent = '';
+    userIdentifier.textContent = '';
     if (authOpenBtn) authOpenBtn.textContent = '로그인';
     updateSaveFeedingButtonVisibility();
     return;
@@ -56,10 +56,14 @@ async function refreshAuthUI() {
   state.currentUser = user;
   loggedOutAuth.classList.add('hidden');
   loggedInAuth.classList.remove('hidden');
-  userEmail.textContent = user.email || '';
+  userIdentifier.textContent = user.id ? `Supabase ID: ${user.id}` : '로그인됨';
   if (authOpenBtn) authOpenBtn.textContent = '내 계정';
   box.classList.remove('hidden');
   updateSaveFeedingButtonVisibility();
+}
+
+function getCurrentPageRedirectTo() {
+  return window.location.href.split('#')[0];
 }
 
 async function handleKakaoOAuthLogin() {
@@ -67,8 +71,9 @@ async function handleKakaoOAuthLogin() {
 
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'kakao',
+    // Keep Kakao consent minimal by omitting optional profile data requests.
     options: {
-      redirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+      redirectTo: getCurrentPageRedirectTo()
     }
   });
 
@@ -83,7 +88,7 @@ async function handleGoogleOAuthLogin() {
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: 'https://provedcat.github.io/catfoodcalculator/'
+      redirectTo: getCurrentPageRedirectTo()
     }
   });
 
