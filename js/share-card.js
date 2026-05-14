@@ -133,6 +133,51 @@ function closeShareModal() {
 }
 
 // -----------------------------------------------
+// 이미지 캡처 공통 처리
+// html2canvas가 화면 카드와 같은 폭/높이/폰트 상태로 렌더링하도록 고정
+// -----------------------------------------------
+async function captureShareCardCanvas() {
+  const captureTarget = document.getElementById('shareCard');
+  const prevStyle = captureTarget.getAttribute('style') || '';
+
+  captureTarget.style.cssText = `
+    width: 360px !important;
+    max-width: 360px !important;
+    box-sizing: border-box !important;
+    transform: none !important;
+    zoom: 1 !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+  `;
+
+  try {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+
+    // 스타일/폰트 적용 후 실제 레이아웃 치수를 확정하기 위해 한 프레임 대기
+    await new Promise(resolve => requestAnimationFrame(() => resolve()));
+
+    const captureWidth = Math.ceil(captureTarget.offsetWidth);
+    const captureHeight = Math.ceil(captureTarget.offsetHeight);
+
+    return await html2canvas(captureTarget, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      width: captureWidth,
+      height: captureHeight,
+      windowWidth: captureTarget.scrollWidth,
+      windowHeight: captureTarget.scrollHeight
+    });
+  } finally {
+    captureTarget.setAttribute('style', prevStyle);
+  }
+}
+
+// -----------------------------------------------
 // 이미지 저장
 // html2canvas로 카드를 PNG로 캡처해서 다운로드
 // -----------------------------------------------
@@ -142,33 +187,8 @@ async function shareCard_save() {
   btn.textContent = '⏳ 생성 중...';
   btn.disabled = true;
 
-  const card = document.getElementById('shareCard');
-
-  // 캡처 전: 카드 폭만 공유 이미지 기준으로 맞추고 높이는 콘텐츠에 맡김
-  const prevStyle = card.getAttribute('style') || '';
-  const cardWidth = 360;
-  card.style.cssText = `
-    width: ${cardWidth}px !important;
-    position: fixed !important;
-    top: -9999px !important;
-    left: -9999px !important;
-  `;
-
-  // 브라우저 레이아웃 반영 대기
-  await new Promise(r => setTimeout(r, 100));
-
   try {
-    const cardHeight = Math.ceil(card.scrollHeight);
-    const canvas = await html2canvas(card, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: '#0d1e36',
-      logging: false,
-      width: cardWidth,
-      height: cardHeight,
-      windowWidth: cardWidth,
-      windowHeight: cardHeight
-    });
+    const canvas = await captureShareCardCanvas();
 
     const link = document.createElement('a');
     const catName = document.getElementById('catName').value || 'cat';
@@ -179,9 +199,6 @@ async function shareCard_save() {
   } catch (err) {
     alert('이미지 저장 실패: ' + err.message);
   }
-
-  // 캡처 후: 원래 스타일 복원
-  card.setAttribute('style', prevStyle);
 
   btn.textContent = 원래텍스트;
   btn.disabled = false;
@@ -198,32 +215,8 @@ async function shareCard_kakao() {
   btn.textContent = '⏳ 이미지 생성 중...';
   btn.disabled = true;
 
-  const card = document.getElementById('shareCard');
-  const prevStyle = card.getAttribute('style') || '';
-  const cardWidth = 360;
-  card.style.cssText = `
-    width: ${cardWidth}px !important;
-    position: fixed !important;
-    top: -9999px !important;
-    left: -9999px !important;
-  `;
-
-  await new Promise(r => setTimeout(r, 100));
-
   try {
-    const cardHeight = Math.ceil(card.scrollHeight);
-    const canvas = await html2canvas(card, {
-      scale: 3,
-      useCORS: true,
-      backgroundColor: '#0d1e36',
-      logging: false,
-      width: cardWidth,
-      height: cardHeight,
-      windowWidth: cardWidth,
-      windowHeight: cardHeight
-    });
-
-    card.setAttribute('style', prevStyle);
+    const canvas = await captureShareCardCanvas();
 
     // Blob으로 변환
     const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
@@ -247,7 +240,6 @@ async function shareCard_kakao() {
     }
 
   } catch (err) {
-    card.setAttribute('style', prevStyle);
     if (err.name !== 'AbortError') {
       alert('공유 실패: ' + err.message);
     }
