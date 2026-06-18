@@ -56,8 +56,9 @@ async function refreshAuthUI() {
   state.currentUser = user;
   loggedOutAuth.classList.add('hidden');
   loggedInAuth.classList.remove('hidden');
-  userIdentifier.textContent = user.id ? `Supabase ID: ${user.id}` : '로그인됨';
-  if (authOpenBtn) authOpenBtn.textContent = '내 계정';
+  // Do not expose provider metadata or the internal Supabase UUID in the UI.
+  userIdentifier.textContent = '로그인됨';
+  if (authOpenBtn) authOpenBtn.textContent = '로그인됨';
   box.classList.remove('hidden');
   updateSaveFeedingButtonVisibility();
 }
@@ -79,21 +80,6 @@ async function handleKakaoOAuthLogin() {
 
   if (error) {
     setAuthMessage(`카카오 로그인 시작 실패: ${error.message}`, 'red');
-  }
-}
-
-async function handleGoogleOAuthLogin() {
-  setAuthMessage('Google 로그인으로 이동합니다...', 'blue');
-
-  const { error } = await sb.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: getCurrentPageRedirectTo()
-    }
-  });
-
-  if (error) {
-    setAuthMessage(`Google 로그인 시작 실패: ${error.message}`, 'red');
   }
 }
 
@@ -143,6 +129,5 @@ async function checkLoginState() {
 window.openAuthSheet = openAuthSheet;
 window.closeAuthSheet = closeAuthSheet;
 window.handleKakaoOAuthLogin = handleKakaoOAuthLogin;
-window.handleGoogleOAuthLogin = handleGoogleOAuthLogin;
 window.handleLogout = handleLogout;
 window.checkLoginState = checkLoginState;
