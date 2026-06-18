@@ -72,9 +72,10 @@ async function handleKakaoOAuthLogin() {
 
   const { error } = await sb.auth.signInWithOAuth({
     provider: 'kakao',
-    // Keep Kakao consent minimal by omitting optional profile data requests.
     options: {
-      redirectTo: getCurrentPageRedirectTo()
+      redirectTo: getCurrentPageRedirectTo(),
+      // Override Supabase/provider defaults so Kakao receives no optional consent scope.
+      scopes: ''
     }
   });
 
