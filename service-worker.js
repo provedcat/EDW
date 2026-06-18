@@ -1,7 +1,6 @@
-const CACHE_NAME = 'provedcat-pwa-v1';
+const CACHE_NAME = 'provedcat-pwa-v33';
 const CORE_ASSETS = [
   './',
-  './index.html',
   './manifest.json',
   './service-worker.js',
   './css/styles.css',
@@ -16,6 +15,9 @@ const CORE_ASSETS = [
   './icons/icon-512.png',
   './icons/apple-touch-icon.png'
 ];
+
+const IMAGE_DESTINATIONS = new Set(['image']);
+const NETWORK_FIRST_DESTINATIONS = new Set(['document', 'script', 'style']);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -37,6 +39,38 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function shouldCacheResponse(response) {
+  return response && response.status === 200 && response.type === 'basic';
+}
+
+async function cacheResponse(request, response) {
+  if (!shouldCacheResponse(response)) return;
+
+  const cache = await caches.open(CACHE_NAME);
+  await cache.put(request, response.clone());
+}
+
+async function networkFirst(request) {
+  try {
+    const networkResponse = await fetch(request);
+    await cacheResponse(request, networkResponse);
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+}
+
+async function cacheFirst(request) {
+  const cachedResponse = await caches.match(request);
+  if (cachedResponse) return cachedResponse;
+
+  const networkResponse = await fetch(request);
+  await cacheResponse(request, networkResponse);
+  return networkResponse;
+}
+
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
@@ -44,20 +78,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
+  if (event.request.mode === 'navigate' || NETWORK_FIRST_DESTINATIONS.has(event.request.destination)) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
 
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
-        }
+  if (IMAGE_DESTINATIONS.has(event.request.destination)) {
+    event.respondWith(cacheFirst(event.request));
+    return;
+  }
 
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
-
-        return networkResponse;
-      });
-    })
-  );
+  event.respondWith(networkFirst(event.request));
 });
