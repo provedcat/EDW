@@ -1,15 +1,12 @@
-function updateCalorie() {
-  const weight   = parseFloat(document.getElementById('catWeight').value);
-  const birthStr = document.getElementById('catBirth').value;
-  if (!weight || !birthStr) return;
+function getAgeMonths(birth, today = new Date()) {
+  return (today.getFullYear() - birth.getFullYear()) * 12
+       + (today.getMonth() - birth.getMonth());
+}
 
-  const today  = new Date();
+function getCaloriePlan(weight, birthStr, neutered, diet, today = new Date()) {
   const birth  = new Date(birthStr);
-  const months = (today.getFullYear() - birth.getFullYear()) * 12
-               + (today.getMonth() - birth.getMonth());
-  const neutered = document.getElementById('catNeutered').value === 'true';
-  const diet     = document.getElementById('isDiet').checked;
-  const RER      = 70 * Math.pow(weight, 0.75);
+  const months = getAgeMonths(birth, today);
+  const RER    = 70 * Math.pow(weight, 0.75);
   let f_age, label;
 
   if      (months < 4)    { f_age = 2.75; label = '초기 성장기'; }
@@ -18,15 +15,58 @@ function updateCalorie() {
   else if (months >= 132) { f_age = 1.1;  label = '노령묘'; }
   else { f_age = neutered ? 1.2 : 1.4; label = neutered ? '중성화 성묘' : '비중성화 성묘'; }
 
+  const isLateGrowth = months >= 9 && months < 12;
   const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
   const f_diet   = diet ? 0.9 : 1.0;
-  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
 
-  document.getElementById('derVal').textContent = DER;
-  let detail = `RER ${Math.round(RER)} × ${f_age} (${label})`;
-  if (f_neuter < 1) detail += ` × ${f_neuter} (중성화)`;
-  if (f_diet   < 1) detail += ` × ${f_diet} (다이어트)`;
-  document.getElementById('derDetail').textContent = detail;
+  let DER;
+  let detail;
+  let dietNotice = '';
+
+  if (diet) {
+    let finalFactor;
+    let finalLabel;
+
+    if (isLateGrowth && neutered) {
+      finalFactor = 1.25;
+      finalLabel = '후기 성장기 · 중성화 · 체중관리';
+      dietNotice = '후기 성장기 고양이는 성장에 필요한 에너지가 남아 있어, 다이어트 모드에서는 성장기 계수를 그대로 곱하지 않고 체중관리 기준으로 계산합니다.';
+    } else {
+      finalFactor = f_age * f_neuter * f_diet;
+      finalLabel = `${label}${f_neuter < 1 ? ' · 중성화' : ''} · 다이어트`;
+    }
+
+    DER = Math.round(RER * finalFactor);
+    detail = `RER ${Math.round(RER)} × ${finalFactor} (${finalLabel})`;
+  } else {
+    DER = Math.round(RER * f_age * f_neuter);
+    detail = `RER ${Math.round(RER)} × ${f_age} (${label})`;
+    if (f_neuter < 1) detail += ` × ${f_neuter} (중성화)`;
+  }
+
+  return { DER, RER, months, f_age, f_neuter, f_diet, label, detail, dietNotice };
+}
+
+if (typeof module !== 'undefined') {
+  module.exports = { getAgeMonths, getCaloriePlan };
+}
+
+function updateCalorie() {
+  const weight   = parseFloat(document.getElementById('catWeight').value);
+  const birthStr = document.getElementById('catBirth').value;
+  if (!weight || !birthStr) return;
+
+  const neutered = document.getElementById('catNeutered').value === 'true';
+  const diet     = document.getElementById('isDiet').checked;
+  const plan     = getCaloriePlan(weight, birthStr, neutered, diet);
+
+  document.getElementById('derVal').textContent = plan.DER;
+  document.getElementById('derDetail').textContent = plan.detail;
+  const noticeEl = document.getElementById('dietNotice');
+  if (noticeEl) {
+    noticeEl.textContent = plan.dietNotice;
+    noticeEl.classList.toggle('hidden', !plan.dietNotice);
+  }
   document.getElementById('calBox').classList.remove('hidden');
 }
 
@@ -123,24 +163,9 @@ function calculate() {
     return;
   }
 
-  const today  = new Date();
-  const birth  = new Date(birthStr);
-  const months = (today.getFullYear() - birth.getFullYear()) * 12
-               + (today.getMonth() - birth.getMonth());
   const neutered = document.getElementById('catNeutered').value === 'true';
   const diet     = document.getElementById('isDiet').checked;
-  const RER      = 70 * Math.pow(weight, 0.75);
-
-  let f_age;
-  if      (months < 4)    f_age = 2.75;
-  else if (months < 9)    f_age = 2.1;
-  else if (months < 12)   f_age = 1.9;
-  else if (months >= 132) f_age = 1.1;
-  else                    f_age = neutered ? 1.2 : 1.4;
-
-  const f_neuter = (months < 12 && neutered) ? 0.85 : 1.0;
-  const f_diet   = diet ? 0.9 : 1.0;
-  const DER      = Math.round(RER * f_age * f_neuter * f_diet);
+  const { DER }  = getCaloriePlan(weight, birthStr, neutered, diet);
 
   const dryRatio  = parseInt(document.getElementById('dryPct').textContent) / 100;
   const wetRatio  = parseInt(document.getElementById('wetPct').textContent) / 100;
