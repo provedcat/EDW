@@ -84,6 +84,21 @@ async function handleKakaoOAuthLogin() {
   }
 }
 
+async function handleGoogleOAuthLogin() {
+  setAuthMessage('Google 로그인으로 이동합니다...', 'blue');
+
+  const { error } = await sb.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: getCurrentPageRedirectTo()
+    }
+  });
+
+  if (error) {
+    setAuthMessage(`Google 로그인 시작 실패: ${error.message}`, 'red');
+  }
+}
+
 async function handleLogout() {
   const logoutButton = document.querySelector('#loggedInAuth button[onclick="handleLogout()"]');
   const originalText = logoutButton?.textContent;
@@ -130,5 +145,6 @@ async function checkLoginState() {
 window.openAuthSheet = openAuthSheet;
 window.closeAuthSheet = closeAuthSheet;
 window.handleKakaoOAuthLogin = handleKakaoOAuthLogin;
+window.handleGoogleOAuthLogin = handleGoogleOAuthLogin;
 window.handleLogout = handleLogout;
 window.checkLoginState = checkLoginState;
