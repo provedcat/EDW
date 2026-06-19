@@ -1,8 +1,18 @@
+function quotePostgrestFilterValue(value) {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+function buildFeedSearchPattern(query) {
+  return quotePostgrestFilterValue(`*${query}*`);
+}
+
 async function searchFeed(type, query, listId, slotId) {
   const list = document.getElementById(listId);
   if (!list) return;
 
-  if (!query || query.length < 1) {
+  const searchQuery = String(query || '').trim();
+
+  if (searchQuery.length < 1) {
     list.classList.add('hidden');
     return;
   }
@@ -13,7 +23,7 @@ async function searchFeed(type, query, listId, slotId) {
     .eq('type', type)
     .eq('verified', true)
     .gt('final_me', 0)
-    .or(`제품명.ilike.%${query}%,제조사.ilike.%${query}%`)
+    .or(`제품명.ilike.${buildFeedSearchPattern(searchQuery)},제조사.ilike.${buildFeedSearchPattern(searchQuery)}`)
     .limit(10);
 
   if (error) {
