@@ -13,7 +13,7 @@ async function searchFeed(type, query, listId, slotId) {
     .eq('type', type)
     .eq('verified', true)
     .gt('final_me', 0)
-    .ilike('제품명', `%${query}%`)
+    .or(`제품명.ilike.%${query}%,제조사.ilike.%${query}%`)
     .limit(10);
 
   if (error) {
