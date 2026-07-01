@@ -104,12 +104,35 @@ function setUploadType(type) {
       : 'border-gray-200 text-gray-400'}`;
 }
 
-async function handleUpload(input) {
-  if (!input.files?.length) return;
-  const file  = input.files[0];
-  const msgEl = document.getElementById('uploadMsg');
 
-  msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 분석 중... 잠시 기다려주세요</p>`;
+let selectedFeedImageFile = null;
+let isUploadingFeedImage = false;
+
+function handleUploadFileChange(input) {
+  if (!input.files?.length) {
+    selectedFeedImageFile = null;
+    return;
+  }
+
+  selectedFeedImageFile = input.files[0];
+  const msgEl = document.getElementById('uploadMsg');
+  if (msgEl) {
+    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📷 선택됨: ${selectedFeedImageFile.name}</p>`;
+  }
+}
+
+async function uploadFeedImageToAppsScript() {
+  const input = document.getElementById('uploadInput');
+  const file = selectedFeedImageFile || input?.files?.[0];
+  if (!file) {
+    alert('분석할 사료 사진을 먼저 선택해주세요.');
+    return;
+  }
+
+  const msgEl = document.getElementById('uploadMsg');
+  if (msgEl) {
+    msgEl.innerHTML = `<p class="text-xs text-blue-400 font-bold mt-2">📡 분석 중... 잠시 기다려주세요</p>`;
+  }
 
   const base64 = await new Promise(res => {
     const r = new FileReader();
@@ -117,26 +140,55 @@ async function handleUpload(input) {
     r.readAsDataURL(file);
   });
 
-  try {
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      body: JSON.stringify({
-        action: 'upload',
-        base64Data: base64,
-        mimeType: file.type,
-        fileName: file.name,
-        type: state.uploadType
-      })
-    });
-    const result = await resp.json();
-    if (result.성공) {
+  console.log('[feed-upload] sending Apps Script request');
+
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'upload',
+      base64Data: base64,
+      mimeType: file.type,
+      fileName: file.name,
+      type: state.uploadType
+    })
+  });
+  const result = await resp.json();
+  if (result.성공) {
+    if (msgEl) {
       msgEl.innerHTML = `<p class="text-xs text-green-500 font-bold mt-2">✅ 전송 완료 — 검수 후 목록에 반영됩니다.</p>`;
-    } else {
-      msgEl.innerHTML = `<p class="text-xs text-orange-400 font-bold mt-2">⚠️ 실패: ${result.오류 || '알 수 없는 오류'}</p>`;
     }
-  } catch (err) {
-    msgEl.innerHTML = `<p class="text-xs text-red-400 font-bold mt-2">❌ 오류: 네트워크 문제 또는 서버 응답 없음</p>`;
+    selectedFeedImageFile = null;
+    if (input) input.value = '';
+  } else if (msgEl) {
+    msgEl.innerHTML = `<p class="text-xs text-orange-400 font-bold mt-2">⚠️ 실패: ${result.오류 || '알 수 없는 오류'}</p>`;
+  }
+}
+
+async function handleFeedImageUpload(event) {
+  event?.preventDefault();
+  console.log('[feed-upload] button clicked');
+
+  if (isUploadingFeedImage) {
+    console.warn('이미지 업로드가 이미 진행 중입니다. 중복 요청을 무시합니다.');
+    return;
   }
 
-  input.value = '';
+  isUploadingFeedImage = true;
+
+  const uploadButton = document.getElementById('uploadFeedBtn');
+  if (uploadButton) uploadButton.disabled = true;
+
+  try {
+    await uploadFeedImageToAppsScript();
+  } catch (error) {
+    console.error('Feed image upload failed:', error);
+    alert('이미지 분석 중 오류가 발생했습니다.');
+    const msgEl = document.getElementById('uploadMsg');
+    if (msgEl) {
+      msgEl.innerHTML = `<p class="text-xs text-red-400 font-bold mt-2">❌ 오류: 네트워크 문제 또는 서버 응답 없음</p>`;
+    }
+  } finally {
+    isUploadingFeedImage = false;
+    if (uploadButton) uploadButton.disabled = false;
+  }
 }
