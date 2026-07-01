@@ -306,18 +306,19 @@
   --background: #F5F7FA;
   --foreground: #1A1A2E;
   --card: #FFFFFF;
-  --primary: #2979FF;
-  --primary-strong: #1769E8;
+  --primary: #2d7dd2;
+  --primary-strong: #236fbf;
   --primary-foreground: #FFFFFF;
   --secondary: #EEF4FF;
   --muted: #F0F2F5;
   --muted-foreground: #9CA3AF;
   --accent: #FFF8F0;
-  --dry: #F5921E;
-  --wet: #2979FF;
+  --dry: #f4a44a;
+  --wet: #4a9af4;
   --border: #E5E7EB;
   --destructive: #E74C3C;
-  --success: #5A9E6F;
+  --nutrition: #5a9e6f;
+  --success: #5a9e6f;
   --radius-lg: 16px;
   --radius-xl: 22px;
   --radius-2xl: 28px;
@@ -332,8 +333,7 @@ body {
   color: var(--foreground);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-body > div.w-full.max-w-\[640px\] {
-  max-width: 464px !important;
+.pc-app-shell {
   background: var(--background) !important;
   box-shadow: none !important;
 }
@@ -344,7 +344,7 @@ header { padding: 18px 10px 14px !important; }
   color: #6B7280 !important;
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
 }
-nav {
+.pc-tabs {
   padding: 0 6px 26px !important;
   gap: 0 !important;
   border-radius: 18px;
@@ -360,17 +360,17 @@ nav {
 }
 #navCalculator.bg-\[\#2d7dd2\],
 #navWeightTrend.bg-\[\#2d7dd2\] {
-  background: linear-gradient(135deg, #2F80FF 0%, var(--primary) 100%) !important;
+  background: linear-gradient(135deg, #3a8ee8 0%, var(--primary) 100%) !important;
   color: var(--primary-foreground) !important;
   box-shadow: var(--shadow-button) !important;
 }
 main { padding: 0 16px 28px !important; }
 #calculatorPage { gap: 24px !important; }
-#calculatorPage > section,
-#weightTrendContent > section,
+.pc-info-card,
+.pc-ratio-card,
+.pc-trend-card,
 #weightTrendLoginNotice,
 #calBox,
-#resultArea > div:first-child,
 #capResult > div,
 #waterResult > div {
   border: 1px solid var(--border) !important;
@@ -378,16 +378,17 @@ main { padding: 0 16px 28px !important; }
   border-radius: var(--radius-xl) !important;
   box-shadow: var(--shadow-soft) !important;
 }
-#calculatorPage > section:first-child {
+.pc-info-card {
   padding: 0 !important;
   overflow: hidden;
   gap: 0 !important;
 }
-#calculatorPage h2 {
+.pc-section-title,
+.pc-upload-section h2 {
   color: #05051F !important;
   letter-spacing: -0.04em;
 }
-#calculatorPage > section:first-child > h2 {
+.pc-info-card > .pc-section-title {
   padding: 0 0 14px !important;
   margin-bottom: 0 !important;
   background: var(--background);
@@ -395,7 +396,7 @@ main { padding: 0 16px 28px !important; }
   transform: translateY(-2px);
 }
 #catName, #catWeight, #catBirth, #catNeutered,
-#calculatorPage > section:first-child label {
+.pc-info-card label {
   border-width: 0 0 1px 0 !important;
   border-color: var(--border) !important;
   border-radius: 0 !important;
@@ -417,7 +418,7 @@ main { padding: 0 16px 28px !important; }
   margin: 14px !important;
   background: var(--secondary) !important;
 }
-#calculatorPage > section:nth-of-type(2) > div:first-of-type {
+.pc-ratio-card {
   background: var(--card) !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-lg) !important;
@@ -452,26 +453,38 @@ main { padding: 0 16px 28px !important; }
   color: #667085 !important;
   border-radius: 999px !important;
 }
-button[onclick="calculate()"] {
-  background: linear-gradient(180deg, #2F80FF 0%, #1769D8 100%) !important;
+.pc-calculate-btn {
+  background: linear-gradient(180deg, #3a8ee8 0%, var(--primary) 100%) !important;
   border-radius: 16px !important;
   min-height: 58px;
-  box-shadow: 0 12px 22px rgba(23, 105, 216, .28) !important;
+  box-shadow: 0 12px 22px rgba(45, 125, 210, .28) !important;
 }
-#capBtn { background: var(--success) !important; }
+
+.pc-result-hero {
+  background: #111827 !important;
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-radius: var(--radius-xl) !important;
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.18) !important;
+  color: #FFFFFF !important;
+}
+.pc-result-hero #resDER { color: #FFFFFF !important; }
+.pc-result-label { color: #8EC5FF !important; }
+.pc-result-unit { color: #B7C0CC !important; }
+#resultArea > p { color: #9CA3AF !important; }
+#capBtn { background: var(--nutrition) !important; }
 #waterBtn { background: #38A8C5 !important; }
 #openShareModalBtn { border-radius: 16px !important; }
-#calculatorPage > section:last-of-type {
+.pc-upload-section {
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   padding-top: 0 !important;
 }
-#calculatorPage > section:last-of-type h2 {
+.pc-upload-section h2 {
   font-size: 22px !important;
   color: #05051F !important;
 }
-#calculatorPage > section:last-of-type label > div {
+.pc-upload-section label > div {
   background: var(--secondary);
   border-color: var(--primary) !important;
   border-style: solid !important;
@@ -484,14 +497,14 @@ button[onclick="calculate()"] {
 
 /* Weight trend page */
 #weightTrendPage { gap: 16px !important; }
-#weightTrendPage > div:first-child {
+.pc-trend-hero {
   background: #EAF2FF !important;
   border: 0 !important;
   border-radius: var(--radius-xl) !important;
   box-shadow: none !important;
   padding: 26px 20px !important;
 }
-#weightTrendContent > section {
+.pc-trend-card {
   padding: 18px 16px !important;
 }
 #trendCatList [data-cat-id] {
@@ -521,7 +534,7 @@ button[onclick="calculate()"] {
   text-align: left !important;
   padding: 16px !important;
 }
-#trendSummaryBox p:first-child { color: var(--primary) !important; }
+.pc-summary-label { color: var(--primary) !important; }
 #trendLatestWeight, #trendStartWeight, #trendWeightDelta {
   color: #05051F;
   font-size: 22px !important;
