@@ -294,8 +294,18 @@ function renderWeightTrendChart(records) {
           display: false
         },
         tooltip: {
+          backgroundColor: '#FFFFFF',
+          titleColor: '#1A1A2E',
+          bodyColor: '#2979FF',
+          borderColor: '#E5E7EB',
+          borderWidth: 1,
+          cornerRadius: 10,
+          displayColors: false,
+          padding: 12,
+          titleFont: { weight: '500' },
+          bodyFont: { weight: 'bold' },
           callbacks: {
-            label: context => `${Number(context.parsed.y).toFixed(1)}kg`
+            label: context => `체중 : ${Number(context.parsed.y).toFixed(1)}kg`
           }
         }
       },

@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="flex justify-center">
-<div class="w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
+<div class="pc-app-shell w-full max-w-[640px] min-h-screen bg-white shadow-sm overflow-x-hidden">
 
   <!-- 헤더 -->
   <header class="px-6 pt-10 pb-4 flex items-center justify-between">
@@ -29,7 +29,7 @@
     </button>
   </header>
 
-  <nav class="px-6 pb-4 grid grid-cols-2 gap-2">
+  <nav class="pc-tabs px-6 pb-4 grid grid-cols-2 gap-2">
     <button id="navCalculator" onclick="showPage('calculatorPage')"
       class="py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white shadow-sm">
       급여 계산
@@ -45,8 +45,8 @@
     <section id="calculatorPage" class="space-y-10">
 
     <!-- 1단계: 고양이 정보 -->
-    <section class="space-y-4">
-      <h2 class="text-xl font-black text-gray-800">1단계. 정보 입력</h2>
+    <section class="pc-info-card space-y-4">
+      <h2 class="pc-section-title text-xl font-black text-gray-800">1단계. 정보 입력</h2>
       <div id="savedCatLoadBox" class="hidden p-4 bg-blue-50 rounded-2xl border border-blue-100 space-y-3">
         <div class="flex items-center justify-between gap-3">
           <div>
@@ -93,9 +93,9 @@
     </section>
 
     <!-- 2단계: 식단 구성 -->
-    <section class="space-y-6">
-      <h2 class="text-xl font-black text-gray-800">2단계. 식단 구성</h2>
-      <div class="p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
+    <section class="pc-diet-section space-y-6">
+      <h2 class="pc-section-title text-xl font-black text-gray-800">2단계. 식단 구성</h2>
+      <div class="pc-ratio-card p-6 bg-gray-50 rounded-3xl space-y-4 border border-gray-100">
         <div class="flex justify-between items-center font-black">
           <div>
             <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-1">DRY</p>
@@ -169,16 +169,16 @@
 
     <!-- 계산 버튼 -->
     <button onclick="calculate()"
-      class="w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
+      class="pc-calculate-btn w-full py-5 bg-[#2d7dd2] text-white font-black text-lg rounded-3xl shadow-lg">
       급여량 계산하기
     </button>
 
     <!-- 결과 영역 -->
     <div id="resultArea" class="hidden space-y-4">
-      <div class="p-6 bg-gray-900 rounded-3xl text-white text-center">
-        <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
+      <div class="pc-result-hero p-6 bg-gray-900 rounded-3xl text-white text-center">
+        <p class="pc-result-label text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Daily Feeding Plan</p>
         <p class="text-5xl font-black text-white" id="resDER">0</p>
-        <p class="text-xs text-gray-400 mt-1">kcal / day</p>
+        <p class="pc-result-unit text-xs text-gray-400 mt-1">kcal / day</p>
       </div>
       <div id="resItems" class="space-y-2"></div>
       <p class="text-xs text-gray-300 text-center leading-relaxed">
@@ -206,7 +206,7 @@
     </button>
 
     <!-- 사료 추가 업로드 -->
-    <section class="space-y-4 pt-4 border-t border-gray-100">
+    <section class="pc-upload-section space-y-4 pt-4 border-t border-gray-100">
       <h2 class="text-lg font-black text-gray-700">사료가 없나요?</h2>
       <p class="text-xs text-gray-400 leading-relaxed">
         영양성분표가 모두 보이는 사진 <strong>1장</strong>을 올려주세요.<br>
@@ -236,7 +236,7 @@
     </section>
 
     <section id="weightTrendPage" class="hidden space-y-5">
-      <div class="p-6 bg-blue-50 rounded-3xl border border-blue-100 space-y-2">
+      <div class="pc-trend-hero p-6 bg-blue-50 rounded-3xl border border-blue-100 space-y-2">
         <p class="text-3xl">📈</p>
         <h2 class="text-xl font-black text-gray-800">체중 추이</h2>
         <p class="text-sm font-bold text-gray-500 leading-relaxed">
@@ -258,7 +258,7 @@
       </div>
 
       <div id="weightTrendContent" class="hidden space-y-5">
-        <section class="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-3">
+        <section class="pc-trend-card p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-3">
           <div>
             <h3 class="text-base font-black text-gray-800">고양이 선택</h3>
             <p class="mt-1 text-xs font-bold text-gray-400">체중 추이를 확인할 고양이를 선택하세요.</p>
@@ -267,7 +267,7 @@
           <p id="trendCatMsg" class="hidden text-xs font-bold text-gray-400"></p>
         </section>
 
-        <section class="p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-4">
+        <section class="pc-trend-card p-5 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-4">
           <div>
             <h3 class="text-base font-black text-gray-800">체중 그래프</h3>
             <p class="mt-1 text-xs font-bold text-gray-400">기록 날짜 기준으로 체중 변화를 표시합니다.</p>
@@ -280,15 +280,15 @@
 
         <section id="trendSummaryBox" class="grid grid-cols-3 gap-2">
           <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-center">
-            <p class="text-[11px] font-black text-blue-400">최근 체중</p>
+            <p class="pc-summary-label text-[11px] font-black text-blue-400">최근 체중</p>
             <p id="trendLatestWeight" class="mt-1 text-lg font-black text-gray-800">—</p>
           </div>
           <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
-            <p class="text-[11px] font-black text-gray-400">시작 체중</p>
+            <p class="pc-summary-label text-[11px] font-black text-gray-400">시작 체중</p>
             <p id="trendStartWeight" class="mt-1 text-lg font-black text-gray-800">—</p>
           </div>
           <div class="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center">
-            <p class="text-[11px] font-black text-gray-400">변화량</p>
+            <p class="pc-summary-label text-[11px] font-black text-gray-400">변화량</p>
             <p id="trendWeightDelta" class="mt-1 text-lg font-black text-gray-800">—</p>
           </div>
         </section>
