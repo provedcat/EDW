@@ -366,7 +366,6 @@ header { padding: 18px 10px 14px !important; }
 }
 main { padding: 0 16px 28px !important; }
 #calculatorPage { gap: 24px !important; }
-.pc-info-card,
 .pc-ratio-card,
 .pc-trend-card,
 #weightTrendLoginNotice,
@@ -380,8 +379,12 @@ main { padding: 0 16px 28px !important; }
 }
 .pc-info-card {
   padding: 0 !important;
-  overflow: hidden;
-  gap: 0 !important;
+  overflow: visible;
+  gap: 16px !important;
+  border: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 .pc-section-title,
 .pc-upload-section h2 {
@@ -389,23 +392,27 @@ main { padding: 0 16px 28px !important; }
   letter-spacing: -0.04em;
 }
 .pc-info-card > .pc-section-title {
-  padding: 0 0 14px !important;
+  padding: 0 !important;
   margin-bottom: 0 !important;
-  background: var(--background);
-  box-shadow: 0 16px 0 var(--background);
-  transform: translateY(-2px);
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
 }
 #catName, #catWeight, #catBirth, #catNeutered,
 .pc-info-card label {
-  border-width: 0 0 1px 0 !important;
-  border-color: var(--border) !important;
-  border-radius: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 1rem !important;
   background: var(--card) !important;
   color: var(--foreground) !important;
   box-shadow: none !important;
 }
 #catName { margin-top: 0 !important; }
-#catWeight { border-top: 0 !important; }
+#catWeight { border-top: 1px solid var(--border) !important; }
+#savedCatLoadBox {
+  background: #eff6ff !important;
+  border: 1px solid #dbeafe !important;
+  border-radius: 1rem !important;
+}
 #catName::placeholder,
 #catWeight::placeholder,
 #catBirth,
