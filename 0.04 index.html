@@ -250,6 +250,11 @@ let state = {
 window.addEventListener('DOMContentLoaded', () => {
   addWetSlot(); // 첫 번째 습식 슬롯 생성
 
+  const uploadFeedBtn = document.getElementById('uploadFeedBtn');
+  if (uploadFeedBtn) {
+    uploadFeedBtn.addEventListener('click', handleFeedImageUpload);
+  }
+
   ['catWeight','catBirth','catNeutered','isDiet'].forEach(id => {
     const el = document.getElementById(id);
     el.addEventListener('change', updateCalorie);
