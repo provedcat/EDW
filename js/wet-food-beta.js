@@ -6,12 +6,11 @@
 /** @typedef {'dry_only'|'dry_and_wet'|'wet_only'|'not_fixed'} DietPattern */
 /** @typedef {'hydration'|'wet_intro'|'daily_wet'|'change_or_add'|'weight_concern'|'dont_know'} WetGoal */
 /** @typedef {'almost_none'|'sometimes'|'some_favorites'|'daily'|'mixed_response'} WetExperience */
-/** @typedef {'will_not_eat'|'vomit_or_diarrhea'|'weight_gain'|'daily_safe'|'price'|'dont_know'} MainConcern */
+/** @typedef {'will_not_eat'|'weight_gain'|'ingredient_review'} MainConcern */
 /** @typedef {'dry'|'wet'|'both'|'skip'} CurrentFoodInput */
-/** @typedef {'dry_based_wet_intro'|'dry_wet_combination_adjustment'|'dry_wet_combination_palatable_addition'|'wet_based_main_management'|'wet_based_main_intro'|'hydration_support'|'weight_control_support'|'broad_exploration'} WetFoodScenario */
+/** @typedef {'dry_based_wet_intro'|'dry_wet_combination_adjustment'|'dry_wet_combination_palatable_addition'|'wet_based_main_management'|'wet_based_main_intro'|'hydration_support'|'weight_control_support'|'ingredient_stability_review'|'broad_exploration'} WetFoodScenario */
 
-const WET_FOOD_FIELDS = 'id,type,제조사,제품명,완전식여부,메인단백질,조단백,조지방,수분,칼슘,인,ca_p_ratio,final_me,cal_unit,calorie_confidence,verified,image_url,쿠팡_링크';
-const WET_FOOD_PAGE_SIZE = 36;
+const WET_FOOD_FIELDS = 'id,type,제조사,제품명,완전식여부,메인단백질,조단백,조지방,수분,칼슘,인,ca_p_ratio,final_me,cal_unit,calorie_confidence,verified,겔화제,image_url,쿠팡_링크';
 
 const wetFoodQuestions = [
   { key: 'dietPattern', title: '최근 7일 기준, 고양이가 식사로 반복해서 먹은 사료 형태는 무엇인가요?', description: '간식, 토핑, 츄르는 제외하고 골라주세요.', options: [
@@ -37,11 +36,8 @@ const wetFoodQuestions = [
   ]},
   { key: 'mainConcern', title: '습식을 고를 때 가장 걱정되는 점은 무엇인가요?', description: '지금 가장 신경 쓰이는 것 하나만 골라주세요.', options: [
     ['will_not_eat', '안 먹을까 봐 걱정돼요', '기호성 테스트가 먼저 필요해요.'],
-    ['vomit_or_diarrhea', '토하거나 설사할까 봐 걱정돼요', '부담이 적은 후보부터 보고 싶어요.'],
     ['weight_gain', '살이 찔까 봐 걱정돼요', '열량과 지방을 같이 보고 싶어요.'],
-    ['daily_safe', '매일 먹여도 되는지 걱정돼요', '주식으로 검토 가능한지 보고 싶어요.'],
-    ['price', '가격이 부담될까 봐 걱정돼요', '계속 사기 쉬운 제품을 보고 싶어요.'],
-    ['dont_know', '성분을 어떻게 봐야 할지 모르겠어요', '제품별 차이를 쉽게 비교하고 싶어요.']
+    ['ingredient_review', '성분을 어떻게 봐야 할지 모르겠어요', '영양 정보와 겔화제 정보를 함께 비교하고 싶어요.']
   ]},
   { key: 'currentFoodInput', title: '지금 먹는 사료를 입력하면 후보를 더 정확하게 좁힐 수 있어요.', description: '제품명을 몰라도 건너뛸 수 있어요.', options: [
     ['dry', '건사료 제품명을 입력할게요', '현재 주식 건사료가 있어요.'],
@@ -54,9 +50,10 @@ const wetFoodQuestions = [
 const wetFoodBetaState = { step: 0, answers: {}, isLoading: false };
 
 function getWetFoodScenario(answers) {
-  if (answers.dietPattern === 'dry_and_wet' && answers.wetGoal === 'change_or_add' && answers.mainConcern === 'will_not_eat') return 'dry_wet_combination_palatable_addition';
-  if (answers.wetGoal === 'hydration') return 'hydration_support';
+  if (answers.mainConcern === 'ingredient_review') return 'ingredient_stability_review';
   if (answers.wetGoal === 'weight_concern' || answers.mainConcern === 'weight_gain') return 'weight_control_support';
+  if (answers.wetGoal === 'hydration') return 'hydration_support';
+  if (answers.dietPattern === 'dry_and_wet' && answers.wetGoal === 'change_or_add' && answers.mainConcern === 'will_not_eat') return 'dry_wet_combination_palatable_addition';
   if (answers.dietPattern === 'dry_only' && answers.wetGoal === 'wet_intro') return 'dry_based_wet_intro';
   if (answers.dietPattern === 'dry_and_wet' && answers.wetGoal === 'change_or_add') return 'dry_wet_combination_adjustment';
   if (answers.dietPattern === 'wet_only' && answers.wetExperience === 'daily') return 'wet_based_main_management';
@@ -73,18 +70,26 @@ function getScenarioSummary(scenario) {
     wet_based_main_intro: '습식을 주식처럼 시작하려는 단계예요.\n잘 먹는 제품보다 먼저, 매일 먹일 수 있는 기본 조건을 갖춘 후보부터 보여드릴게요.',
     hydration_support: '수분 보충을 목적으로 습식을 찾는 상황이에요.\n건식과 함께 먹이기 쉽고, 열량 부담이 과하지 않은 후보를 먼저 보여드릴게요.',
     weight_control_support: '체중 증가가 걱정되는 상황이에요.\n열량과 지방 부담이 비교적 낮은 후보를 우선 보여드릴게요.',
+    ingredient_stability_review: '성분표를 직접 비교하기 어려운 상황이에요.\n완전식 여부와 칼슘·인, 열량 정보처럼 확인 가능한 자료가 충분한 제품을 먼저 보여드릴게요. 겔화제 정보도 함께 확인하되, 정보가 없는 제품을 미사용 제품으로 판단하지는 않아요.',
     broad_exploration: '아직 방향을 정하는 단계예요.\n처음부터 하나의 정답을 고르기보다, 비교를 시작하기 좋은 후보를 넓게 보여드릴게요.'
   }[scenario];
 }
 
 const reasonTextMap = {
-  verified: '검수된 DB 항목이라 비교 기준으로 삼기 좋아요.', complete_food: '주식으로 등록된 제품이라 매일 급여 후보로 검토하기 좋아요.', ca_p_available: '칼슘·인 정보가 확인되어 장기급여 검토에 도움이 돼요.', ca_p_balanced: 'Ca:P 비율이 비교하기 쉬운 범위에 있어요.', calorie_available: '열량 정보가 있어 기존 식단과 함께 양을 조절하기 좋아요.', high_confidence_calorie: '열량 신뢰도가 높게 표시되어 있어요.', moderate_calorie: '열량 부담이 과하지 않아 건식과 함께 먹이기 비교적 좋아요.', low_calorie: '열량이 낮은 편이라 총열량을 보며 조절하기 좋아요.', low_fat: '지방이 낮은 편이라 기존 식단에 소량 더해보기 좋아요.', moderate_fat: '지방이 과하게 높지 않아 병행 후보로 보기 좋아요.', protein_diversity: '현재 식단과 다른 단백질원이라 식단이 한쪽으로 치우치는 것을 줄이는 데 도움이 돼요.', high_moisture: '수분이 높은 편이라 수분 보충 목적에 잘 맞아요.', palatable_test: '처음에는 많이 바꾸기보다 먹는지 확인하는 테스트 후보로 보기 좋아요.', main_food_review: '주식 조건을 함께 확인해볼 후보예요.'
+  verified: '검수된 DB 항목이라 비교 기준으로 삼기 좋아요.', complete_food: '주식으로 등록된 제품이라 매일 급여 후보로 검토하기 좋아요.', ca_p_available: '칼슘·인 정보가 확인되어 장기급여 검토에 도움이 돼요.', ca_p_balanced: 'Ca:P 비율이 비교하기 쉬운 범위에 있어요.', calorie_available: '열량 정보가 있어 기존 식단과 함께 양을 조절하기 좋아요.', high_confidence_calorie: '열량 신뢰도가 높게 표시되어 있어요.', moderate_calorie: '열량 부담이 과하지 않아 건식과 함께 먹이기 비교적 좋아요.', low_calorie: '열량이 낮은 편이라 총열량을 보며 조절하기 좋아요.', low_fat: '지방이 낮은 편이라 기존 식단에 소량 더해보기 좋아요.', moderate_fat: '지방이 과하게 높지 않아 병행 후보로 보기 좋아요.', protein_diversity: '현재 식단과 다른 단백질원이라 식단이 한쪽으로 치우치는 것을 줄이는 데 도움이 돼요.', high_moisture: '수분이 높은 편이라 수분 보충 목적에 잘 맞아요.', palatable_test: '처음에는 많이 바꾸기보다 먹는지 확인하는 테스트 후보로 보기 좋아요.', main_food_review: '주식 조건을 함께 확인해볼 후보예요.', gel_explicit_none: 'DB에 입력된 정보상 겔화제 미사용이 확인된 제품이에요.', gel_known_no_carrageenan: 'DB에 입력된 겔화제 정보에서는 카라기난이 확인되지 않았어요.'
 };
 const cautionTextMap = {
-  unknown_complete: '완전식 여부가 확인되지 않아 단독 주식으로 장기급여 판단은 제한적이에요.', missing_ca_p: '칼슘·인 정보가 부족해 장기급여 판단에는 추가 확인이 필요해요.', high_fat: '지방이 높은 편이라 건식과 함께 먹일 때 총 급여량 조절이 필요해요.', high_calorie: '열량이 높은 편이라 기존 건식 양을 그대로 두고 추가하면 총열량이 늘 수 있어요.', repeated_protein: '현재 식단과 단백질원이 겹칠 수 있어요.', fish_repetition: '현재 식단에 생선 계열이 이미 있다면 너무 자주 반복되지 않게 확인해 주세요.'
+  unknown_complete: '완전식 여부가 확인되지 않아 단독 주식으로 장기급여 판단은 제한적이에요.', missing_ca_p: '칼슘·인 정보가 부족해 장기급여 판단에는 추가 확인이 필요해요.', high_fat: '지방이 높은 편이라 건식과 함께 먹일 때 총 급여량 조절이 필요해요.', high_calorie: '열량이 높은 편이라 기존 건식 양을 그대로 두고 추가하면 총열량이 늘 수 있어요.', repeated_protein: '현재 식단과 단백질원이 겹칠 수 있어요.', fish_repetition: '현재 식단에 생선 계열이 이미 있다면 너무 자주 반복되지 않게 확인해 주세요.', missing_ca_p_ratio: 'Ca:P 정보가 부족해 비율 비교에는 추가 확인이 필요해요.', missing_calorie: '열량 정보가 부족해 급여량 비교에는 추가 확인이 필요해요.', gel_carrageenan: '겔화제 정보에 카라기난이 포함되어 있어요.', gel_unknown: '겔화제 정보가 입력되지 않아 사용 여부를 확인하기 어려워요.'
 };
 
-function toNumber(value) { const n = Number(value); return Number.isFinite(n) ? n : null; }
+function toNumber(value) {
+  if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+    return null;
+  }
+
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
 function includesCode(list, code) { return list.includes(code); }
 function pushUnique(list, code) { if (!list.includes(code)) list.push(code); }
 function getFeedProteinText(feed) { return `${feed?.메인단백질 || ''} ${feed?.제품명 || ''}`.toLowerCase(); }
@@ -94,6 +99,47 @@ function extractProteinKeywords(text) { const raw = String(text || '').toLowerCa
 function hasRepeatedProtein(feed, proteins) { const text = getFeedProteinText(feed); return proteins.some(p => text.includes(String(p).toLowerCase())); }
 function hasFishProtein(feed) { const text = getFeedProteinText(feed); return fishProteins.some(p => text.includes(p.toLowerCase())); }
 
+function getGelInfo(value) {
+  if (value === null || value === undefined || String(value).trim() === '') {
+    return { isKnown: false, isExplicitlyNone: false, hasCarrageenan: false, label: '정보 없음' };
+  }
+
+  const text = String(value).trim();
+  const normalized = text.replace(/\s+/g, '').toLowerCase();
+  const explicitNoneValues = ['없음', '미사용', '무첨가', '사용하지않음'];
+  const isExplicitlyNone = explicitNoneValues.includes(normalized)
+    || /^(겔화제|점증제)?(없음|미사용|무첨가|사용하지않음)$/.test(normalized);
+  const hasCarrageenan = normalized.includes('카라기난');
+
+  return {
+    isKnown: true,
+    isExplicitlyNone,
+    hasCarrageenan,
+    label: text
+  };
+}
+
+function sortReasonCodes(reasonCodes, scenario) {
+  if (scenario !== 'ingredient_stability_review') return reasonCodes;
+
+  const priority = [
+    'complete_food',
+    'ca_p_available',
+    'ca_p_balanced',
+    'gel_explicit_none',
+    'gel_known_no_carrageenan',
+    'calorie_available',
+    'high_confidence_calorie',
+    'verified'
+  ];
+
+  return [...reasonCodes].sort((a, b) => {
+    const aIndex = priority.includes(a) ? priority.indexOf(a) : priority.length;
+    const bIndex = priority.includes(b) ? priority.indexOf(b) : priority.length;
+    return aIndex - bIndex;
+  });
+}
+
 function scoreWetFoodCandidate(feed, context) {
   if (!feed || feed.type !== 'wet') return { score: -999, candidateType: '정보 확인 필요 후보', reasonCodes: [], cautionCodes: ['unknown_complete'] };
   let score = 0;
@@ -102,6 +148,7 @@ function scoreWetFoodCandidate(feed, context) {
   const fat = toNumber(feed.조지방), moisture = toNumber(feed.수분), kcal = toNumber(feed.final_me), cap = toNumber(feed.ca_p_ratio);
   const ca = toNumber(feed.칼슘), p = toNumber(feed.인);
   const complete = String(feed.완전식여부 || '').trim();
+  const gelInfo = getGelInfo(feed.겔화제);
 
   if (feed.verified === true) { score += 8; pushUnique(reasonCodes, 'verified'); }
   if (complete === '주식') { score += 14; pushUnique(reasonCodes, 'complete_food'); }
@@ -158,11 +205,26 @@ function scoreWetFoodCandidate(feed, context) {
       if (complete === '주식') score += 10;
       if (ca != null && p != null) score += 5;
       break;
+    case 'ingredient_stability_review':
+      candidateType = '성분 정보 비교 후보';
+      if (complete === '주식') score += 10;
+      if (ca != null && p != null) score += 8;
+      if (cap != null && cap >= 1 && cap <= 2) score += 8;
+      if (kcal != null) score += 5;
+      else { score -= 4; pushUnique(cautionCodes, 'missing_calorie'); }
+      if (feed.calorie_confidence === 'high') score += 5;
+      if (cap == null) { score -= 3; pushUnique(cautionCodes, 'missing_ca_p_ratio'); }
+
+      if (gelInfo.isExplicitlyNone) { score += 8; pushUnique(reasonCodes, 'gel_explicit_none'); }
+      else if (gelInfo.isKnown && !gelInfo.hasCarrageenan) { score += 4; pushUnique(reasonCodes, 'gel_known_no_carrageenan'); }
+      else if (gelInfo.hasCarrageenan) { score -= 3; pushUnique(cautionCodes, 'gel_carrageenan'); }
+      else { score -= 2; pushUnique(cautionCodes, 'gel_unknown'); }
+      break;
     default:
       candidateType = complete === '주식' ? '주식 검토 후보' : '먼저 테스트해볼 후보';
   }
   if (includesCode(cautionCodes, 'unknown_complete') || includesCode(cautionCodes, 'missing_ca_p')) candidateType = score < 18 ? '정보 확인 필요 후보' : candidateType;
-  return { score, candidateType, reasonCodes, cautionCodes };
+  return { score, candidateType, reasonCodes: sortReasonCodes(reasonCodes, context.scenario), cautionCodes };
 }
 
 function formatValue(v, suffix = '') { const n = toNumber(v); return n == null ? '정보 없음' : `${Number.isInteger(n) ? n : n.toFixed(1)}${suffix}`; }
@@ -183,13 +245,35 @@ async function findCurrentFoodProteins(answers) {
 }
 
 async function fetchWetFoodCandidates() {
-  return sb.from('feeds').select(WET_FOOD_FIELDS).eq('type', 'wet').limit(WET_FOOD_PAGE_SIZE);
+  const pageSize = 1000;
+  let from = 0;
+  const allFeeds = [];
+
+  while (true) {
+    const { data, error } = await sb
+      .from('feeds')
+      .select(WET_FOOD_FIELDS)
+      .eq('type', 'wet')
+      .eq('verified', true)
+      .order('id', { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) return { data: null, error };
+
+    allFeeds.push(...(data || []));
+
+    if (!data || data.length < pageSize) break;
+
+    from += pageSize;
+  }
+
+  return { data: allFeeds, error: null };
 }
 
 function groupCandidates(scored) {
-  const groups = { '먼저 테스트해볼 후보': [], '건식과 함께 먹이기 좋은 후보': [], '주식으로 검토 가능한 후보': [], '확인이 필요한 후보': [], '수분 보충 후보': [], '체중관리 고려 후보': [] };
+  const groups = { '먼저 테스트해볼 후보': [], '건식과 함께 먹이기 좋은 후보': [], '주식으로 검토 가능한 후보': [], '확인이 필요한 후보': [], '수분 보충 후보': [], '체중관리 고려 후보': [], '성분 정보를 비교하기 좋은 후보': [] };
   scored.forEach(item => {
-    const key = item.scoreInfo.candidateType === '건식 병행 후보' ? '건식과 함께 먹이기 좋은 후보' : item.scoreInfo.candidateType === '주식 검토 후보' ? '주식으로 검토 가능한 후보' : item.scoreInfo.candidateType === '정보 확인 필요 후보' ? '확인이 필요한 후보' : item.scoreInfo.candidateType;
+    const key = item.scoreInfo.candidateType === '건식 병행 후보' ? '건식과 함께 먹이기 좋은 후보' : item.scoreInfo.candidateType === '주식 검토 후보' ? '주식으로 검토 가능한 후보' : item.scoreInfo.candidateType === '정보 확인 필요 후보' ? '확인이 필요한 후보' : item.scoreInfo.candidateType === '성분 정보 비교 후보' ? '성분 정보를 비교하기 좋은 후보' : item.scoreInfo.candidateType;
     (groups[key] || groups['먼저 테스트해볼 후보']).push(item);
   });
   return Object.entries(groups).filter(([, items]) => items.length).map(([title, items]) => [title, items.slice(0, 6)]);
@@ -206,7 +290,7 @@ function renderWetFoodCandidateCard(item) {
     </div>
     <p class="text-xs font-bold text-gray-500 leading-relaxed">이 제품은 현재 답변 기준에서 비교를 시작하기 좋은 후보예요. 확정 추천이 아니라, 기존 식단에 소량 더해보며 반응을 확인하기 위한 후보로 봐주세요.</p>
     <div class="grid grid-cols-2 gap-2 text-xs">
-      ${[['완전식 여부', f.완전식여부 || '확인 필요'], ['메인단백질', f.메인단백질 || '정보 없음'], ['열량', formatKcal(f)], ['조단백', formatValue(f.조단백, '%')], ['조지방', formatValue(f.조지방, '%')], ['수분', formatValue(f.수분, '%')], ['칼슘', formatValue(f.칼슘, '%')], ['인', formatValue(f.인, '%')], ['Ca:P', formatValue(f.ca_p_ratio)]].map(([k,v]) => `<div class="bg-gray-50 rounded-2xl p-3"><p class="text-[10px] font-black text-gray-400">${k}</p><p class="font-bold text-gray-700 mt-1">${v}</p></div>`).join('')}
+      ${[['완전식 여부', f.완전식여부 || '확인 필요'], ['메인단백질', f.메인단백질 || '정보 없음'], ['열량', formatKcal(f)], ['조단백', formatValue(f.조단백, '%')], ['조지방', formatValue(f.조지방, '%')], ['수분', formatValue(f.수분, '%')], ['칼슘', formatValue(f.칼슘, '%')], ['인', formatValue(f.인, '%')], ['Ca:P', formatValue(f.ca_p_ratio)], ['겔화제', getGelInfo(f.겔화제).label]].map(([k,v]) => `<div class="bg-gray-50 rounded-2xl p-3"><p class="text-[10px] font-black text-gray-400">${k}</p><p class="font-bold text-gray-700 mt-1">${v}</p></div>`).join('')}
     </div>
     <div class="grid md:grid-cols-2 gap-3 text-xs leading-relaxed"><div class="bg-blue-50 rounded-2xl p-3"><p class="font-black text-blue-500 mb-1">이유</p><ul class="list-disc pl-4 text-gray-600 space-y-1">${reasons}</ul></div><div class="bg-orange-50 rounded-2xl p-3"><p class="font-black text-orange-500 mb-1">확인하면 좋은 점</p><ul class="list-disc pl-4 text-gray-600 space-y-1">${cautions}</ul></div></div>
     ${f.쿠팡_링크 ? `<a href="${f.쿠팡_링크}" target="_blank" rel="noopener" class="block text-center py-3 rounded-2xl bg-gray-900 text-white text-xs font-black">제품 정보 보기</a>` : ''}
@@ -254,4 +338,4 @@ function renderWetFoodResults(scenario, currentProteins, scored, error) {
 function resetWetFoodBeta() { wetFoodBetaState.step = 0; wetFoodBetaState.answers = {}; renderWetFoodBeta(); }
 
 if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', renderWetFoodBeta);
-if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, scoreWetFoodCandidate };
+if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
