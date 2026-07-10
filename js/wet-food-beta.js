@@ -501,5 +501,15 @@ function renderWetFoodResults(scenario, currentProteins, scored, error) {
 }
 function resetWetFoodBeta() { wetFoodBetaState.step = 0; wetFoodBetaState.answers = {}; renderWetFoodBeta(); }
 
-if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', renderWetFoodBeta);
+if (typeof window !== 'undefined') {
+  window.renderWetFoodBeta = renderWetFoodBeta;
+
+  if (document.readyState === 'loading') {
+    window.addEventListener(
+      'DOMContentLoaded',
+      renderWetFoodBeta,
+      { once: true }
+    );
+  }
+}
 if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, getFeedProteins, hasRepeatedProtein, hasDifferentProtein, selectMatchedFeed, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
