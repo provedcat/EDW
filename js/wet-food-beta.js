@@ -93,7 +93,7 @@ function toNumber(value) {
 function includesCode(list, code) { return list.includes(code); }
 function pushUnique(list, code) { if (!list.includes(code)) list.push(code); }
 const PROTEIN_ALIASES = {
-  chicken: ['닭', '닭고기', '계육', '치킨', 'chicken', 'poultry'],
+  chicken: ['닭', '닭고기', '닭가슴살', '닭가슴', '계육', '치킨', 'chicken', 'poultry'],
   duck: ['오리', '오리고기', 'duck'],
   turkey: ['칠면조', '터키', 'turkey'],
   beef: ['소', '소고기', '쇠고기', '우육', '비프', 'beef'],
@@ -101,13 +101,20 @@ const PROTEIN_ALIASES = {
   lamb: ['양', '양고기', '램', 'lamb', 'mutton'],
   salmon: ['연어', '살몬', 'salmon'],
   tuna: ['참치', '튜나', 'tuna'],
+  herring: ['청어', 'herring'],
+  shrimp: ['새우', '쉬림프', 'shrimp', 'prawn'],
+  bonito: ['가다랑어', '가쓰오', 'bonito', 'skipjack', 'skipjack tuna'],
+  whitefish: ['흰살생선', '백색어', 'whitefish', 'white fish'],
+  fish: ['생선', '어류', 'fish'],
   sardine: ['정어리', 'sardine'],
   mackerel: ['고등어', '매커럴', 'mackerel'],
   pollock: ['명태', '대구', '폴락', 'pollock', 'cod'],
   rabbit: ['토끼', '래빗', 'rabbit'],
   venison: ['사슴', '사슴고기', '베니슨', 'venison', 'deer'],
   quail: ['메추리', '퀘일', 'quail'],
-  goat: ['염소', '염소고기', 'goat']
+  goat: ['염소', '염소고기', 'goat'],
+  wallaby: ['왈라비', 'wallaby'],
+  kangaroo: ['캥거루', 'kangaroo']
 };
 const PROTEIN_LABELS = {
   chicken: '닭',
@@ -118,15 +125,22 @@ const PROTEIN_LABELS = {
   lamb: '양',
   salmon: '연어',
   tuna: '참치',
+  herring: '청어',
+  shrimp: '새우',
+  bonito: '가다랑어',
+  whitefish: '흰살생선',
+  fish: '생선',
   sardine: '정어리',
   mackerel: '고등어',
   pollock: '명태·대구',
   rabbit: '토끼',
   venison: '사슴',
   quail: '메추리',
-  goat: '염소'
+  goat: '염소',
+  wallaby: '왈라비',
+  kangaroo: '캥거루'
 };
-const FISH_PROTEINS = new Set(['salmon', 'tuna', 'sardine', 'mackerel', 'pollock']);
+const FISH_PROTEINS = new Set(['salmon', 'tuna', 'sardine', 'mackerel', 'pollock', 'herring', 'bonito', 'whitefish', 'fish']);
 const RISKY_SINGLE_KOREAN_ALIASES = new Set(['닭', '소', '양']);
 
 function escapeRegExp(value) {
@@ -134,7 +148,7 @@ function escapeRegExp(value) {
 }
 
 function isEnglishAlias(alias) {
-  return /^[a-z]+$/i.test(alias);
+  return /^[a-z ]+$/i.test(alias);
 }
 
 function isKoreanAlias(alias) {
@@ -145,27 +159,32 @@ function aliasMatchesText(text, alias, source) {
   if (!text || !alias) return false;
 
   const raw = String(text);
+  const normalizedText = raw.toLowerCase();
   const normalizedAlias = String(alias).toLowerCase();
-
-  if (source !== 'mainProtein' && RISKY_SINGLE_KOREAN_ALIASES.has(alias)) {
-    return false;
-  }
 
   if (isEnglishAlias(alias)) {
     return new RegExp(`\\b${escapeRegExp(normalizedAlias)}\\b`, 'i').test(raw);
   }
 
-  if (source === 'mainProtein' && isKoreanAlias(alias)) {
+  if (isKoreanAlias(alias) && RISKY_SINGLE_KOREAN_ALIASES.has(alias)) {
+    if (source !== 'mainProtein') return false;
+
     const tokenPattern = new RegExp(`(^|[^가-힣a-zA-Z])${escapeRegExp(alias)}([^가-힣a-zA-Z]|$)`, 'i');
     return tokenPattern.test(raw);
   }
 
-  if (alias.length === 1 && isKoreanAlias(alias)) {
-    const tokenPattern = new RegExp(`(^|[^가-힣a-zA-Z])${escapeRegExp(alias)}([^가-힣a-zA-Z]|$)`, 'i');
-    return tokenPattern.test(raw);
+  if (isKoreanAlias(alias)) {
+    return normalizedText.includes(normalizedAlias);
   }
 
-  return raw.toLowerCase().includes(normalizedAlias);
+  return false;
+}
+
+function removeGenericFishWhenSpecificExists(proteins) {
+  const specificFish = proteins.filter(protein => FISH_PROTEINS.has(protein) && protein !== 'fish');
+  if (specificFish.length === 0) return proteins;
+
+  return proteins.filter(protein => protein !== 'fish');
 }
 
 function extractProteinKeywords(text, options = {}) {
@@ -181,7 +200,7 @@ function extractProteinKeywords(text, options = {}) {
     }
   });
 
-  return proteins;
+  return removeGenericFishWhenSpecificExists(proteins);
 }
 
 function getFeedProteins(feed) {
@@ -212,6 +231,22 @@ function hasFishProtein(feed) {
 
 function formatProteinLabels(proteins) {
   return proteins.map(protein => PROTEIN_LABELS[protein] || protein);
+}
+
+function normalizeProductName(value) {
+  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function selectMatchedFeed(data, inputText) {
+  if (!Array.isArray(data) || data.length === 0) return null;
+
+  const normalizedInput = normalizeProductName(inputText);
+  const exactMatch = data.find(feed => normalizeProductName(feed.제품명) === normalizedInput);
+  if (exactMatch) return exactMatch;
+
+  if (data.length === 1) return data[0];
+
+  return null;
 }
 
 function getGelInfo(value) {
@@ -353,9 +388,16 @@ async function findCurrentFoodProteins(answers) {
 
   await Promise.all(inputs.map(async input => {
     try {
-      const { data } = await sb.from('feeds').select('메인단백질,전성분,제품명').eq('type', input.type).ilike('제품명', `%${input.text}%`).limit(3);
-      if (data && data.length > 0) {
-        data.forEach(feed => getFeedProteins(feed).forEach(protein => proteins.add(protein)));
+      const { data, error } = await sb
+        .from('feeds')
+        .select('id,제조사,메인단백질,전성분,제품명')
+        .eq('type', input.type)
+        .eq('verified', true)
+        .ilike('제품명', `%${input.text}%`)
+        .limit(10);
+      const matchedFeed = error ? null : selectMatchedFeed(data, input.text);
+      if (matchedFeed) {
+        getFeedProteins(matchedFeed).forEach(protein => proteins.add(protein));
         return;
       }
     } catch (e) { console.warn('current food lookup failed', e); }
@@ -460,4 +502,4 @@ function renderWetFoodResults(scenario, currentProteins, scored, error) {
 function resetWetFoodBeta() { wetFoodBetaState.step = 0; wetFoodBetaState.answers = {}; renderWetFoodBeta(); }
 
 if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', renderWetFoodBeta);
-if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, getFeedProteins, hasRepeatedProtein, hasDifferentProtein, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
+if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, getFeedProteins, hasRepeatedProtein, hasDifferentProtein, selectMatchedFeed, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
