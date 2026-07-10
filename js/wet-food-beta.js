@@ -10,7 +10,7 @@
 /** @typedef {'dry'|'wet'|'both'|'skip'} CurrentFoodInput */
 /** @typedef {'dry_based_wet_intro'|'dry_wet_combination_adjustment'|'dry_wet_combination_palatable_addition'|'wet_based_main_management'|'wet_based_main_intro'|'hydration_support'|'weight_control_support'|'ingredient_stability_review'|'broad_exploration'} WetFoodScenario */
 
-const WET_FOOD_FIELDS = 'id,type,제조사,제품명,완전식여부,메인단백질,조단백,조지방,수분,칼슘,인,ca_p_ratio,final_me,cal_unit,calorie_confidence,verified,겔화제,image_url,쿠팡_링크';
+const WET_FOOD_FIELDS = 'id,type,제조사,제품명,완전식여부,메인단백질,전성분,조단백,조지방,수분,칼슘,인,ca_p_ratio,final_me,cal_unit,calorie_confidence,verified,겔화제,image_url,쿠팡_링크';
 
 const wetFoodQuestions = [
   { key: 'dietPattern', title: '최근 7일 기준, 고양이가 식사로 반복해서 먹은 사료 형태는 무엇인가요?', description: '간식, 토핑, 츄르는 제외하고 골라주세요.', options: [
@@ -92,12 +92,127 @@ function toNumber(value) {
 }
 function includesCode(list, code) { return list.includes(code); }
 function pushUnique(list, code) { if (!list.includes(code)) list.push(code); }
-function getFeedProteinText(feed) { return `${feed?.메인단백질 || ''} ${feed?.제품명 || ''}`.toLowerCase(); }
-const proteinKeywordMap = { 오리:'오리', 닭:'치킨', 치킨:'치킨', 참치:'참치', 연어:'연어', 살몬:'연어', 램:'램', 양:'램', 칠면조:'칠면조', 소:'소', 돼지:'돼지', 정어리:'정어리', 고등어:'고등어', 명태:'명태', 토끼:'토끼' };
-const fishProteins = ['참치','연어','정어리','고등어','명태'];
-function extractProteinKeywords(text) { const raw = String(text || '').toLowerCase(); return [...new Set(Object.entries(proteinKeywordMap).filter(([k]) => raw.includes(k.toLowerCase())).map(([,v]) => v))]; }
-function hasRepeatedProtein(feed, proteins) { const text = getFeedProteinText(feed); return proteins.some(p => text.includes(String(p).toLowerCase())); }
-function hasFishProtein(feed) { const text = getFeedProteinText(feed); return fishProteins.some(p => text.includes(p.toLowerCase())); }
+const PROTEIN_ALIASES = {
+  chicken: ['닭', '닭고기', '계육', '치킨', 'chicken', 'poultry'],
+  duck: ['오리', '오리고기', 'duck'],
+  turkey: ['칠면조', '터키', 'turkey'],
+  beef: ['소', '소고기', '쇠고기', '우육', '비프', 'beef'],
+  pork: ['돼지', '돼지고기', '돈육', '포크', 'pork'],
+  lamb: ['양', '양고기', '램', 'lamb', 'mutton'],
+  salmon: ['연어', '살몬', 'salmon'],
+  tuna: ['참치', '튜나', 'tuna'],
+  sardine: ['정어리', 'sardine'],
+  mackerel: ['고등어', '매커럴', 'mackerel'],
+  pollock: ['명태', '대구', '폴락', 'pollock', 'cod'],
+  rabbit: ['토끼', '래빗', 'rabbit'],
+  venison: ['사슴', '사슴고기', '베니슨', 'venison', 'deer'],
+  quail: ['메추리', '퀘일', 'quail'],
+  goat: ['염소', '염소고기', 'goat']
+};
+const PROTEIN_LABELS = {
+  chicken: '닭',
+  duck: '오리',
+  turkey: '칠면조',
+  beef: '소',
+  pork: '돼지',
+  lamb: '양',
+  salmon: '연어',
+  tuna: '참치',
+  sardine: '정어리',
+  mackerel: '고등어',
+  pollock: '명태·대구',
+  rabbit: '토끼',
+  venison: '사슴',
+  quail: '메추리',
+  goat: '염소'
+};
+const FISH_PROTEINS = new Set(['salmon', 'tuna', 'sardine', 'mackerel', 'pollock']);
+const RISKY_SINGLE_KOREAN_ALIASES = new Set(['닭', '소', '양']);
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function isEnglishAlias(alias) {
+  return /^[a-z]+$/i.test(alias);
+}
+
+function isKoreanAlias(alias) {
+  return /[가-힣]/.test(alias);
+}
+
+function aliasMatchesText(text, alias, source) {
+  if (!text || !alias) return false;
+
+  const raw = String(text);
+  const normalizedAlias = String(alias).toLowerCase();
+
+  if (source !== 'mainProtein' && RISKY_SINGLE_KOREAN_ALIASES.has(alias)) {
+    return false;
+  }
+
+  if (isEnglishAlias(alias)) {
+    return new RegExp(`\\b${escapeRegExp(normalizedAlias)}\\b`, 'i').test(raw);
+  }
+
+  if (source === 'mainProtein' && isKoreanAlias(alias)) {
+    const tokenPattern = new RegExp(`(^|[^가-힣a-zA-Z])${escapeRegExp(alias)}([^가-힣a-zA-Z]|$)`, 'i');
+    return tokenPattern.test(raw);
+  }
+
+  if (alias.length === 1 && isKoreanAlias(alias)) {
+    const tokenPattern = new RegExp(`(^|[^가-힣a-zA-Z])${escapeRegExp(alias)}([^가-힣a-zA-Z]|$)`, 'i');
+    return tokenPattern.test(raw);
+  }
+
+  return raw.toLowerCase().includes(normalizedAlias);
+}
+
+function extractProteinKeywords(text, options = {}) {
+  if (text === null || text === undefined || String(text).trim() === '') return [];
+
+  const source = options.source || 'productName';
+  const proteins = [];
+
+  Object.entries(PROTEIN_ALIASES).forEach(([proteinCode, aliases]) => {
+    const sortedAliases = [...aliases].sort((a, b) => b.length - a.length);
+    if (sortedAliases.some(alias => aliasMatchesText(text, alias, source))) {
+      proteins.push(proteinCode);
+    }
+  });
+
+  return proteins;
+}
+
+function getFeedProteins(feed) {
+  const mainProteins = extractProteinKeywords(feed?.메인단백질, { source: 'mainProtein' });
+  if (mainProteins.length > 0) return mainProteins;
+
+  const ingredientProteins = extractProteinKeywords(feed?.전성분, { source: 'ingredients' });
+  if (ingredientProteins.length > 0) return ingredientProteins;
+
+  return extractProteinKeywords(feed?.제품명, { source: 'productName' });
+}
+
+function hasRepeatedProtein(feed, currentProteins) {
+  const candidateProteins = new Set(getFeedProteins(feed));
+  return currentProteins.some(protein => candidateProteins.has(protein));
+}
+
+function hasDifferentProtein(feed, currentProteins) {
+  const candidateProteins = getFeedProteins(feed);
+  return currentProteins.length > 0
+    && candidateProteins.length > 0
+    && candidateProteins.every(protein => !currentProteins.includes(protein));
+}
+
+function hasFishProtein(feed) {
+  return getFeedProteins(feed).some(protein => FISH_PROTEINS.has(protein));
+}
+
+function formatProteinLabels(proteins) {
+  return proteins.map(protein => PROTEIN_LABELS[protein] || protein);
+}
 
 function getGelInfo(value) {
   if (value === null || value === undefined || String(value).trim() === '') {
@@ -160,8 +275,8 @@ function scoreWetFoodCandidate(feed, context) {
   if (kcal != null && kcal > 1250) { score -= 7; pushUnique(cautionCodes, 'high_calorie'); }
   if (fat != null && fat >= 6) { score -= 6; pushUnique(cautionCodes, 'high_fat'); }
   if (hasRepeatedProtein(feed, context.currentProteins || [])) { score -= 5; pushUnique(cautionCodes, 'repeated_protein'); }
-  else if ((context.currentProteins || []).length) { score += 7; pushUnique(reasonCodes, 'protein_diversity'); }
-  if (hasFishProtein(feed) && (context.currentProteins || []).some(p => fishProteins.includes(p))) pushUnique(cautionCodes, 'fish_repetition');
+  else if (hasDifferentProtein(feed, context.currentProteins || [])) { score += 7; pushUnique(reasonCodes, 'protein_diversity'); }
+  if (hasFishProtein(feed) && (context.currentProteins || []).some(p => FISH_PROTEINS.has(p))) pushUnique(cautionCodes, 'fish_repetition');
 
   let candidateType = '먼저 테스트해볼 후보';
   switch (context.scenario) {
@@ -234,13 +349,20 @@ async function findCurrentFoodProteins(answers) {
   const inputs = [];
   if ((answers.currentFoodInput === 'dry' || answers.currentFoodInput === 'both') && answers.dryFood) inputs.push({ type: 'dry', text: answers.dryFood });
   if ((answers.currentFoodInput === 'wet' || answers.currentFoodInput === 'both') && answers.wetFoods) String(answers.wetFoods).split(/[,\n]/).map(s => s.trim()).filter(Boolean).forEach(text => inputs.push({ type: 'wet', text }));
-  const proteins = new Set(inputs.flatMap(i => extractProteinKeywords(i.text)));
+  const proteins = new Set();
+
   await Promise.all(inputs.map(async input => {
     try {
-      const { data } = await sb.from('feeds').select('메인단백질,제품명').eq('type', input.type).ilike('제품명', `%${input.text}%`).limit(3);
-      (data || []).forEach(feed => extractProteinKeywords(`${feed.메인단백질 || ''} ${feed.제품명 || ''}`).forEach(p => proteins.add(p)));
+      const { data } = await sb.from('feeds').select('메인단백질,전성분,제품명').eq('type', input.type).ilike('제품명', `%${input.text}%`).limit(3);
+      if (data && data.length > 0) {
+        data.forEach(feed => getFeedProteins(feed).forEach(protein => proteins.add(protein)));
+        return;
+      }
     } catch (e) { console.warn('current food lookup failed', e); }
+
+    extractProteinKeywords(input.text, { source: 'productName' }).forEach(protein => proteins.add(protein));
   }));
+
   return [...proteins];
 }
 
@@ -333,9 +455,9 @@ async function runWetFoodBeta() {
 function renderWetFoodResults(scenario, currentProteins, scored, error) {
   const root = document.getElementById('wetFoodBetaRoot');
   const groups = groupCandidates(scored);
-  root.innerHTML = `<section class="space-y-5"><div class="p-5 bg-blue-50 rounded-3xl border border-blue-100"><p class="text-xs font-black text-blue-400 mb-2">상황 요약</p><p class="text-base font-bold text-gray-800 leading-relaxed whitespace-pre-line">${getScenarioSummary(scenario)}</p>${currentProteins.length ? `<p class="mt-3 text-xs font-bold text-blue-500">현재 식단 단백질 참고: ${currentProteins.join(', ')}</p>` : ''}</div>${error ? `<div class="p-5 bg-red-50 rounded-3xl text-sm font-bold text-red-500 leading-relaxed">Supabase 조회에 실패했어요. 잠시 후 다시 시도해 주세요.<br>${error.message || error}</div>` : ''}${!error && !scored.length ? `<div class="p-5 bg-gray-50 rounded-3xl text-sm font-bold text-gray-500 leading-relaxed">조건에 맞는 습식 후보를 찾지 못했어요. DB가 업데이트되면 후보가 표시됩니다.</div>` : ''}${groups.map(([title, items]) => `<div class="space-y-3"><h3 class="text-lg font-black text-gray-800">${title}</h3>${items.map(renderWetFoodCandidateCard).join('')}</div>`).join('')}<div class="p-5 bg-gray-50 rounded-3xl space-y-2"><p class="font-black text-gray-700">더 좁혀보기</p>${['먹고 난 뒤 반응도 반영하기','가격대도 같이 보기','후보 수 줄이기'].map(t => `<button disabled class="w-full py-3 rounded-2xl bg-white border border-gray-100 text-gray-300 font-black text-sm">${t} · 다음 버전 예정</button>`).join('')}</div><button onclick="resetWetFoodBeta()" class="w-full py-4 bg-gray-900 text-white rounded-2xl font-black">처음부터 다시 하기</button></section>`;
+  root.innerHTML = `<section class="space-y-5"><div class="p-5 bg-blue-50 rounded-3xl border border-blue-100"><p class="text-xs font-black text-blue-400 mb-2">상황 요약</p><p class="text-base font-bold text-gray-800 leading-relaxed whitespace-pre-line">${getScenarioSummary(scenario)}</p>${currentProteins.length ? `<p class="mt-3 text-xs font-bold text-blue-500">현재 식단 단백질 참고: ${formatProteinLabels(currentProteins).join(', ')}</p>` : ''}</div>${error ? `<div class="p-5 bg-red-50 rounded-3xl text-sm font-bold text-red-500 leading-relaxed">Supabase 조회에 실패했어요. 잠시 후 다시 시도해 주세요.<br>${error.message || error}</div>` : ''}${!error && !scored.length ? `<div class="p-5 bg-gray-50 rounded-3xl text-sm font-bold text-gray-500 leading-relaxed">조건에 맞는 습식 후보를 찾지 못했어요. DB가 업데이트되면 후보가 표시됩니다.</div>` : ''}${groups.map(([title, items]) => `<div class="space-y-3"><h3 class="text-lg font-black text-gray-800">${title}</h3>${items.map(renderWetFoodCandidateCard).join('')}</div>`).join('')}<div class="p-5 bg-gray-50 rounded-3xl space-y-2"><p class="font-black text-gray-700">더 좁혀보기</p>${['먹고 난 뒤 반응도 반영하기','가격대도 같이 보기','후보 수 줄이기'].map(t => `<button disabled class="w-full py-3 rounded-2xl bg-white border border-gray-100 text-gray-300 font-black text-sm">${t} · 다음 버전 예정</button>`).join('')}</div><button onclick="resetWetFoodBeta()" class="w-full py-4 bg-gray-900 text-white rounded-2xl font-black">처음부터 다시 하기</button></section>`;
 }
 function resetWetFoodBeta() { wetFoodBetaState.step = 0; wetFoodBetaState.answers = {}; renderWetFoodBeta(); }
 
 if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', renderWetFoodBeta);
-if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
+if (typeof module !== 'undefined') module.exports = { getWetFoodScenario, getScenarioSummary, extractProteinKeywords, getFeedProteins, hasRepeatedProtein, hasDifferentProtein, scoreWetFoodCandidate, toNumber, getGelInfo, fetchWetFoodCandidates };
