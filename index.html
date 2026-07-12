@@ -182,7 +182,8 @@
     <!-- 제품 목록 바텀시트 -->
     <div id="feedPickerModal" class="fixed inset-0 z-[100] hidden" aria-hidden="true">
       <button type="button" class="absolute inset-0 w-full h-full bg-black/40" aria-label="제품 목록 닫기" onclick="closeFeedPicker()"></button>
-      <section class="absolute inset-x-0 bottom-0 max-h-[90vh] bg-white rounded-t-[2rem] shadow-2xl p-5 flex flex-col overflow-hidden">
+      <section role="dialog" aria-modal="true" aria-labelledby="feedPickerTitle"
+        class="absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-[640px] max-h-[90vh] bg-white rounded-t-[2rem] shadow-2xl pt-5 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col overflow-hidden">
         <div class="flex items-start justify-between gap-3 pb-4">
           <div>
             <p class="text-xs font-black text-[#2d7dd2] tracking-widest">PRODUCT LIST</p>

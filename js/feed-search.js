@@ -101,8 +101,18 @@ const feedPickerState = {
     dry: null,
     wet: null
   },
-  isLoading: false,
-  error: null
+  loading: {
+    dry: false,
+    wet: false
+  },
+  error: {
+    dry: null,
+    wet: null
+  },
+  requests: {
+    dry: null,
+    wet: null
+  }
 };
 
 function escapeFeedPickerHtml(value) {
@@ -130,7 +140,7 @@ function setFeedPickerBodyScrollLock(isLocked) {
 function openFeedPicker(type, slotId) {
   feedPickerState.type = type;
   feedPickerState.slotId = slotId;
-  feedPickerState.error = null;
+  feedPickerState.error[type] = null;
 
   const modal = document.getElementById('feedPickerModal');
   if (modal) {
@@ -165,23 +175,41 @@ async function fetchFeedPickerFeeds(type) {
 }
 
 async function ensureFeedPickerFeeds(type) {
-  if (feedPickerState.cache[type]) {
-    renderFeedPicker();
+  if (feedPickerState.cache[type] !== null) {
+    if (feedPickerState.type === type) renderFeedPicker();
     return;
   }
 
-  feedPickerState.isLoading = true;
-  feedPickerState.error = null;
-  renderFeedPicker();
+  if (feedPickerState.requests[type]) {
+    await feedPickerState.requests[type];
+    if (feedPickerState.type === type) renderFeedPicker();
+    return;
+  }
 
-  try {
-    feedPickerState.cache[type] = await fetchFeedPickerFeeds(type);
-  } catch (error) {
-    feedPickerState.error = error;
-  } finally {
-    feedPickerState.isLoading = false;
+  feedPickerState.loading[type] = true;
+  feedPickerState.error[type] = null;
+
+  if (feedPickerState.type === type) {
     renderFeedPicker();
   }
+
+  feedPickerState.requests[type] = fetchFeedPickerFeeds(type)
+    .then(data => {
+      feedPickerState.cache[type] = data;
+    })
+    .catch(error => {
+      feedPickerState.error[type] = error;
+    })
+    .finally(() => {
+      feedPickerState.loading[type] = false;
+      feedPickerState.requests[type] = null;
+
+      if (feedPickerState.type === type) {
+        renderFeedPicker();
+      }
+    });
+
+  await feedPickerState.requests[type];
 }
 
 function setFeedPickerSort(sortBy) {
@@ -221,25 +249,29 @@ function renderFeedPicker() {
   const list = document.getElementById('feedPickerList');
   if (!title || !status || !list) return;
 
-  title.textContent = feedPickerState.type === 'wet' ? '습식사료 제품 목록' : '건사료 제품 목록';
+  const type = feedPickerState.type;
+  const isLoading = feedPickerState.loading[type];
+  const error = feedPickerState.error[type];
+
+  title.textContent = type === 'wet' ? '습식사료 제품 목록' : '건사료 제품 목록';
   renderFeedPickerSortButtons();
 
-  if (feedPickerState.isLoading) {
+  if (isLoading) {
     status.textContent = '제품 목록을 불러오는 중이에요...';
     status.className = 'py-4 text-center text-sm font-bold text-gray-400';
     list.innerHTML = '';
     return;
   }
 
-  if (feedPickerState.error) {
-    status.textContent = `제품 목록을 불러오지 못했어요. ${feedPickerState.error.message || ''}`.trim();
+  if (error) {
+    status.textContent = `제품 목록을 불러오지 못했어요. ${error.message || ''}`.trim();
     status.className = 'py-4 text-center text-sm font-bold text-red-400';
     list.innerHTML = '';
     return;
   }
 
   const feeds = getSortedFeedPickerFeeds();
-  if (!feeds.length && feedPickerState.cache[feedPickerState.type]) {
+  if (!feeds.length && feedPickerState.cache[type] !== null) {
     status.textContent = '표시할 제품이 없습니다.';
     status.className = 'py-4 text-center text-sm font-bold text-gray-400';
     list.innerHTML = '';
