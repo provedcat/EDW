@@ -123,10 +123,14 @@ function addWetSlot() {
             class="w-10 bg-transparent text-center font-black text-blue-600 text-sm">
           <span class="text-xs font-black text-blue-400">%</span>
         </div>
-        <button onclick="removeWetSlot(${slotId})"
+        <button type="button" onclick="removeWetSlot(${slotId})"
           class="px-3 h-14 bg-blue-100 text-blue-300 font-black text-lg">✕</button>
       ` : ''}
     </div>
+    <button type="button" onclick="openFeedPicker('wet', ${slotId})"
+      class="mt-2 text-xs font-black text-blue-500 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+      제품 목록에서 찾기
+    </button>
     <div id="wetList_${slotId}"
       class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden">
     </div>

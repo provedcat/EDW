@@ -92,6 +92,186 @@ document.addEventListener('click', e => {
   }
 });
 
+
+const feedPickerState = {
+  type: null,
+  slotId: null,
+  sortBy: 'manufacturer',
+  cache: {
+    dry: null,
+    wet: null
+  },
+  isLoading: false,
+  error: null
+};
+
+function escapeFeedPickerHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getFeedPickerMainProtein(feed) {
+  const value = String(feed?.메인단백질 ?? '').trim();
+  return value || '정보 없음';
+}
+
+function compareFeedText(a, b) {
+  return String(a || '').localeCompare(String(b || ''), 'ko');
+}
+
+function setFeedPickerBodyScrollLock(isLocked) {
+  document.body.style.overflow = isLocked ? 'hidden' : '';
+}
+
+function openFeedPicker(type, slotId) {
+  feedPickerState.type = type;
+  feedPickerState.slotId = slotId;
+  feedPickerState.error = null;
+
+  const modal = document.getElementById('feedPickerModal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+  setFeedPickerBodyScrollLock(true);
+  renderFeedPicker();
+  ensureFeedPickerFeeds(type);
+}
+
+function closeFeedPicker() {
+  const modal = document.getElementById('feedPickerModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  setFeedPickerBodyScrollLock(false);
+}
+
+async function fetchFeedPickerFeeds(type) {
+  const { data, error } = await sb
+    .from('feeds')
+    .select('제품명,제조사,메인단백질,final_me,eb_칼슘,eb_인,수분')
+    .eq('type', type)
+    .eq('verified', true)
+    .gt('final_me', 0)
+    .range(0, 999);
+
+  if (error) throw error;
+  return data || [];
+}
+
+async function ensureFeedPickerFeeds(type) {
+  if (feedPickerState.cache[type]) {
+    renderFeedPicker();
+    return;
+  }
+
+  feedPickerState.isLoading = true;
+  feedPickerState.error = null;
+  renderFeedPicker();
+
+  try {
+    feedPickerState.cache[type] = await fetchFeedPickerFeeds(type);
+  } catch (error) {
+    feedPickerState.error = error;
+  } finally {
+    feedPickerState.isLoading = false;
+    renderFeedPicker();
+  }
+}
+
+function setFeedPickerSort(sortBy) {
+  feedPickerState.sortBy = sortBy === 'product' ? 'product' : 'manufacturer';
+  renderFeedPicker();
+}
+
+function getSortedFeedPickerFeeds() {
+  const feeds = feedPickerState.cache[feedPickerState.type] || [];
+  const sorted = feeds.slice();
+
+  if (feedPickerState.sortBy === 'product') {
+    return sorted.sort((a, b) => compareFeedText(a.제품명, b.제품명));
+  }
+
+  return sorted.sort((a, b) => {
+    const manufacturerOrder = compareFeedText(a.제조사, b.제조사);
+    if (manufacturerOrder !== 0) return manufacturerOrder;
+    return compareFeedText(a.제품명, b.제품명);
+  });
+}
+
+function renderFeedPickerSortButtons() {
+  const manufacturerBtn = document.getElementById('feedPickerSortManufacturer');
+  const productBtn = document.getElementById('feedPickerSortProduct');
+  if (!manufacturerBtn || !productBtn) return;
+
+  const activeClass = 'py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white';
+  const inactiveClass = 'py-3 rounded-2xl text-sm font-black bg-gray-100 text-gray-400';
+  manufacturerBtn.className = feedPickerState.sortBy === 'manufacturer' ? activeClass : inactiveClass;
+  productBtn.className = feedPickerState.sortBy === 'product' ? activeClass : inactiveClass;
+}
+
+function renderFeedPicker() {
+  const title = document.getElementById('feedPickerTitle');
+  const status = document.getElementById('feedPickerStatus');
+  const list = document.getElementById('feedPickerList');
+  if (!title || !status || !list) return;
+
+  title.textContent = feedPickerState.type === 'wet' ? '습식사료 제품 목록' : '건사료 제품 목록';
+  renderFeedPickerSortButtons();
+
+  if (feedPickerState.isLoading) {
+    status.textContent = '제품 목록을 불러오는 중이에요...';
+    status.className = 'py-4 text-center text-sm font-bold text-gray-400';
+    list.innerHTML = '';
+    return;
+  }
+
+  if (feedPickerState.error) {
+    status.textContent = `제품 목록을 불러오지 못했어요. ${feedPickerState.error.message || ''}`.trim();
+    status.className = 'py-4 text-center text-sm font-bold text-red-400';
+    list.innerHTML = '';
+    return;
+  }
+
+  const feeds = getSortedFeedPickerFeeds();
+  if (!feeds.length && feedPickerState.cache[feedPickerState.type]) {
+    status.textContent = '표시할 제품이 없습니다.';
+    status.className = 'py-4 text-center text-sm font-bold text-gray-400';
+    list.innerHTML = '';
+    return;
+  }
+
+  status.className = 'hidden';
+  status.textContent = '';
+  list.innerHTML = feeds.map((feed, index) => `
+    <button type="button" onclick="selectFeedFromPicker(${index})"
+      class="w-full min-h-[72px] text-left p-4 bg-gray-50 border border-gray-100 rounded-2xl active:bg-blue-50">
+      <p class="text-xs font-black text-gray-400">${escapeFeedPickerHtml(feed.제조사 || '제조사 정보 없음')}</p>
+      <p class="text-base font-black text-gray-800 mt-1 leading-snug">${escapeFeedPickerHtml(feed.제품명 || '제품명 정보 없음')}</p>
+      <p class="inline-block mt-2 px-2.5 py-1 bg-white rounded-full text-[11px] font-black text-blue-400 border border-blue-50">
+        ${escapeFeedPickerHtml(getFeedPickerMainProtein(feed))}
+      </p>
+    </button>
+  `).join('');
+}
+
+function selectFeedFromPicker(index) {
+  const feedData = getSortedFeedPickerFeeds()[index];
+  if (!feedData) return;
+  selectFeed(feedPickerState.type, feedPickerState.slotId, feedData, null);
+  closeFeedPicker();
+}
+
+window.openFeedPicker = openFeedPicker;
+window.closeFeedPicker = closeFeedPicker;
+window.setFeedPickerSort = setFeedPickerSort;
+window.selectFeedFromPicker = selectFeedFromPicker;
+
 function setUploadType(type) {
   state.uploadType = type;
   document.getElementById('upDryBtn').className =
