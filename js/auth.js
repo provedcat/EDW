@@ -50,6 +50,9 @@ async function refreshAuthUI() {
     userIdentifier.textContent = '';
     if (authOpenBtn) authOpenBtn.textContent = '로그인';
     updateSaveFeedingButtonVisibility();
+    if (typeof window.updateWetFoodBetaAccess === 'function') {
+      await window.updateWetFoodBetaAccess(null);
+    }
     return;
   }
 
@@ -61,6 +64,9 @@ async function refreshAuthUI() {
   if (authOpenBtn) authOpenBtn.textContent = '로그인됨';
   box.classList.remove('hidden');
   updateSaveFeedingButtonVisibility();
+  if (typeof window.updateWetFoodBetaAccess === 'function') {
+    await window.updateWetFoodBetaAccess(user);
+  }
 }
 
 function getCurrentPageRedirectTo() {

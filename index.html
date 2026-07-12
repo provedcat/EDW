@@ -29,7 +29,7 @@
     </button>
   </header>
 
-  <nav class="pc-tabs px-6 pb-4 grid grid-cols-3 gap-2">
+  <nav id="mainNav" class="pc-tabs px-6 pb-4 grid grid-cols-2 gap-2">
     <button id="navCalculator" onclick="showPage('calculatorPage')"
       class="py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white shadow-sm">
       급여 계산
@@ -39,8 +39,8 @@
       체중 추이
     </button>
     <button id="navWetFoodBeta" onclick="showPage('wetFoodBetaPage')"
-      class="py-3 rounded-2xl text-sm font-black bg-gray-100 text-gray-400">
-      습식 후보 추천 beta
+      class="hidden py-3 rounded-2xl text-sm font-black bg-gray-100 text-gray-400">
+      습식 후보
     </button>
   </nav>
 
@@ -243,7 +243,7 @@
     </section>
 
 
-    <section id="wetFoodBetaPage" class="hidden space-y-6">
+    <section id="wetFoodBetaPage" class="hidden space-y-5">
       <div class="pc-info-card p-5 bg-white rounded-3xl border border-gray-100 shadow-sm">
         <p class="text-xs font-black text-blue-400 tracking-widest">RULE-BASED BETA</p>
         <h2 class="mt-2 text-2xl font-black text-gray-800 tracking-tight">습식 후보 찾기 v0.1 베타</h2>
@@ -519,6 +519,13 @@ let state = {
 // 페이지 전환
 // -----------------------------------------------
 function showPage(pageName) {
+  if (
+    pageName === 'wetFoodBetaPage' &&
+    window.wetBetaAccessGranted !== true
+  ) {
+    pageName = 'calculatorPage';
+  }
+
   const pages = {
     calculatorPage: document.getElementById('calculatorPage'),
     weightTrendPage: document.getElementById('weightTrendPage'),
@@ -604,9 +611,9 @@ window.addEventListener('DOMContentLoaded', () => {
 <script src="js/calculator.js?v=20260701-ui-refresh-2"></script>
 <script src="js/feed-search.js?v=20260701-ui-refresh-2"></script>
 <script src="js/saved-cats.js?v=20260701-ui-refresh-2"></script>
-<script src="js/auth.js?v=20260701-ui-refresh-2"></script>
+<script src="js/auth.js?v=20260710-wet-beta-access"></script>
+<script src="js/wet-beta-access.js?v=20260710-wet-beta-access"></script>
 <script src="js/share-card.js?v=20260701-ui-refresh-2"></script>
 <script src="js/weight-trend.js?v=20260701-ui-refresh-2"></script>
-<script src="js/wet-food-beta.js?v=20260710-wet-beta"></script>
 </body>
 </html>
