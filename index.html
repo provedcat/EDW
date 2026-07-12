@@ -139,6 +139,10 @@
             </div>
           </div>
           <div id="dryList1" class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden"></div>
+          <button type="button" onclick="openFeedPicker('dry', 0)"
+            class="mt-2 text-xs font-black text-orange-500 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
+            제품 목록에서 찾기
+          </button>
           <p id="drySelected1" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
         </div>
         <div id="dryArea2" class="hidden relative">
@@ -154,6 +158,10 @@
             </div>
           </div>
           <div id="dryList2" class="absolute left-0 right-0 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl mt-1 max-h-48 overflow-y-auto hidden"></div>
+          <button type="button" onclick="openFeedPicker('dry', 1)"
+            class="mt-2 text-xs font-black text-orange-500 bg-orange-50 border border-orange-100 rounded-xl px-3 py-2">
+            제품 목록에서 찾기
+          </button>
           <p id="drySelected2" class="text-xs text-orange-400 font-bold mt-1 px-1 hidden"></p>
         </div>
       </div>
@@ -162,7 +170,7 @@
       <div class="space-y-3">
         <div class="flex justify-between items-center">
           <p class="text-xs font-black text-[#4a9af4] tracking-widest italic">WET FOOD</p>
-          <button onclick="addWetSlot()" id="addWetBtn"
+          <button type="button" onclick="addWetSlot()" id="addWetBtn"
             class="text-xs font-bold text-blue-400 border border-blue-200 rounded-xl px-3 py-1">
             + 추가 (최대 3개)
           </button>
@@ -170,6 +178,37 @@
         <div id="wetSlots" class="space-y-2"></div>
       </div>
     </section>
+
+    <!-- 제품 목록 바텀시트 -->
+    <div id="feedPickerModal" class="fixed inset-0 z-[100] hidden" aria-hidden="true">
+      <button type="button" class="absolute inset-0 w-full h-full bg-black/40" aria-label="제품 목록 닫기" onclick="closeFeedPicker()"></button>
+      <section role="dialog" aria-modal="true" aria-labelledby="feedPickerTitle"
+        class="absolute left-1/2 -translate-x-1/2 bottom-0 w-full max-w-[640px] max-h-[90vh] bg-white rounded-t-[2rem] shadow-2xl pt-5 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] flex flex-col overflow-hidden">
+        <div class="flex items-start justify-between gap-3 pb-4">
+          <div>
+            <p class="text-xs font-black text-[#2d7dd2] tracking-widest">PRODUCT LIST</p>
+            <h2 id="feedPickerTitle" class="text-xl font-black text-gray-800 mt-1">제품 목록</h2>
+          </div>
+          <button type="button" onclick="closeFeedPicker()" aria-label="제품 목록 닫기"
+            class="shrink-0 px-4 py-2 bg-gray-100 text-gray-500 rounded-2xl text-xs font-black">
+            닫기
+          </button>
+        </div>
+
+        <div class="pb-4 border-b border-gray-100">
+          <p class="text-xs font-black text-gray-400 mb-2">정렬</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" id="feedPickerSortManufacturer" onclick="setFeedPickerSort('manufacturer')"
+              class="py-3 rounded-2xl text-sm font-black bg-[#2d7dd2] text-white">제조사순</button>
+            <button type="button" id="feedPickerSortProduct" onclick="setFeedPickerSort('product')"
+              class="py-3 rounded-2xl text-sm font-black bg-gray-100 text-gray-400">제품명순</button>
+          </div>
+        </div>
+
+        <div id="feedPickerStatus" class="py-4 text-center text-sm font-bold text-gray-400 hidden"></div>
+        <div id="feedPickerList" class="flex-1 min-h-0 overflow-y-auto pt-3 space-y-2"></div>
+      </section>
+    </div>
 
     <!-- 계산 버튼 -->
     <button onclick="calculate()"
@@ -608,8 +647,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 </script>
 <script src="js/pwa-install.js?v=20260701-ui-refresh-2"></script>
-<script src="js/calculator.js?v=20260701-ui-refresh-2"></script>
-<script src="js/feed-search.js?v=20260701-ui-refresh-2"></script>
+<script src="js/calculator.js?v=20260712-feed-picker"></script>
+<script src="js/feed-search.js?v=20260712-feed-picker"></script>
 <script src="js/saved-cats.js?v=20260701-ui-refresh-2"></script>
 <script src="js/auth.js?v=20260710-wet-beta-access"></script>
 <script src="js/wet-beta-access.js?v=20260710-wet-beta-access"></script>
