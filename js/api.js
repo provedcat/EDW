@@ -1,4 +1,4 @@
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js?v=20260819-4';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js?v=20260819-5';
 
 export const TOKEN_KEY = 'eundong-sync-token';
 
@@ -13,7 +13,7 @@ export function captureToken(location = window.location, storage = localStorage,
 }
 
 export class Api {
-  constructor(token, fetcher = fetch) {
+  constructor(token, fetcher = (...args) => globalThis.fetch(...args)) {
     this.token = token;
     this.fetcher = fetcher;
   }
