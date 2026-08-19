@@ -1,7 +1,16 @@
-export const MEAL_TIMES=['06:30','09:00','18:30','23:00'];
-export function numberOrNull(value){if(value===''||value==null)return null;const n=Number(value);return Number.isFinite(n)?n:null}
-// Proved currently exposes its resolved energy value through final_me; do not recalculate it.
-export function resolvedKcal(feed){const n=numberOrNull(feed?.final_me);return n!=null&&n>=0?n:null}
-export function mealNutrition(meal,feed){const grams=Math.max(0,numberOrNull(meal?.amount_g)??0);const water=Math.max(0,numberOrNull(meal?.added_water_ml)??0);const kcalKg=resolvedKcal(feed);const moisture=numberOrNull(feed?.['수분']);return{grams,addedWater:water,kcal:kcalKg==null?null:grams*kcalKg/1000,foodWater:moisture==null?null:grams*moisture/100}}
-export function dailyTotals(meals,feeds){return meals.reduce((a,m)=>{const n=mealNutrition(m,feeds.find(f=>String(f.id)===String(m.feed_id)));a.grams+=n.grams;a.addedWater+=n.addedWater;if(n.kcal==null&&n.grams>0)a.missingKcal=true;else a.kcal+=n.kcal??0;if(n.foodWater==null&&n.grams>0)a.missingMoisture=true;else a.foodWater+=n.foodWater??0;return a},{grams:0,kcal:0,foodWater:0,addedWater:0,missingKcal:false,missingMoisture:false})}
-export function targetForDate(goal,date){if(!goal)return null;const startWeight=numberOrNull(goal.start_weight),goalWeight=numberOrNull(goal.goal_weight);if(startWeight==null||goalWeight==null||!goal.start_date||!date)return null;const start=new Date(`${goal.start_date}T00:00:00Z`),current=new Date(`${date}T00:00:00Z`);if(!Number.isFinite(start.getTime())||!Number.isFinite(current.getTime()))return null;const weeks=Math.max(0,Math.floor((current-start)/604800000));const weekly=numberOrNull(goal.weekly_change_kg)??-0.05;const raw=startWeight+weeks*weekly;return weekly<0?Math.max(goalWeight,raw):Math.min(goalWeight,raw)}
+export function numberOrNull(value) { if (value === '' || value == null) return null; const n = Number(value); return Number.isFinite(n) ? n : null; }
+export function mealNutrition(meal) {
+  const grams = Math.max(0, numberOrNull(meal.amount_g) ?? 0), addedWater = Math.max(0, numberOrNull(meal.added_water_ml) ?? 0);
+  const kcalRate = numberOrNull(meal.kcal_per_kg_snapshot), moisture = numberOrNull(meal.moisture_snapshot);
+  return { grams, addedWater, kcal: kcalRate == null ? null : grams * kcalRate / 1000, foodWater: moisture == null ? null : grams * moisture / 100 };
+}
+export function dailyTotals(meals) {
+  const rows = meals.map(mealNutrition), fed = rows.filter(r => r.grams > 0);
+  return { grams: rows.reduce((n, r) => n + r.grams, 0), kcal: rows.reduce((n, r) => n + (r.kcal ?? 0), 0), foodWater: rows.reduce((n, r) => n + (r.foodWater ?? 0), 0), addedWater: rows.reduce((n, r) => n + r.addedWater, 0), missingKcal: fed.some(r => r.kcal == null), missingMoisture: fed.some(r => r.foodWater == null) };
+}
+export function targetForDate(settings, date) {
+  const start = Date.parse(`${settings?.goal_start_date}T00:00:00Z`), end = Date.parse(`${settings?.goal_end_date}T00:00:00Z`), current = Date.parse(`${date}T00:00:00Z`);
+  const from = numberOrNull(settings?.goal_start_weight_kg), to = numberOrNull(settings?.goal_weight_kg);
+  if (![start, end, current, from, to].every(Number.isFinite) || end <= start) return null;
+  const progress = Math.max(0, Math.min(1, (current - start) / (end - start))); return from + (to - from) * progress;
+}
