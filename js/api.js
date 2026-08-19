@@ -1,4 +1,4 @@
-import { SUPABASE_URL } from './config.js';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
 
 export const TOKEN_KEY = 'eundong-sync-token';
 
@@ -24,9 +24,9 @@ export class Api {
       signal,
       headers: {
         'Content-Type': 'application/json',
-        'X-Eundong-Sync-Token': this.token,
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
       },
-      body: JSON.stringify({ action, ...payload }),
+      body: JSON.stringify({ sync_token: this.token, action, ...payload }),
     });
 
     let body = {};
