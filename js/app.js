@@ -1,4 +1,4 @@
-import { Api, captureToken } from './api.js?v=20260819-2';
+import { Api, captureToken } from './api.js?v=20260819-4';
 import { dailyTotals, numberOrNull, targetForDate } from './calculations.js';
 
 const $ = id => document.getElementById(id), TIMES = ['06:30', '09:00', '18:30', '23:00'], DRAFT_PREFIX = 'eundong-draft-';
@@ -35,7 +35,7 @@ async function start(api) {
       for (const m of body.meals || []) day.meals[m.meal_slot - 1] = { ...day.meals[m.meal_slot - 1], ...m, amount_g: m.amount_g ?? '', added_water_ml: m.added_water_ml ?? '' };
       if (!body.feeds?.length && body.previousFeeds?.length) { const latest = body.previousFeeds[0].recorded_date, copies = body.previousFeeds.filter(f => f.recorded_date === latest); if (copies.length) { await api.call('copy_feeds', { date, feeds: copies }); return loadDay(quiet); } }
       applyDraft(); render(); status('최신 기록'); showError(''); $('syncedAt').textContent = '방금';
-    } catch (e) { status('불러오기 실패', true); showError(e.status === 401 ? '비밀 연결 정보가 올바르지 않습니다.' : 'Supabase 기록을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.'); }
+    } catch (e) { status('불러오기 실패', true); showError(e.status === 401 ? '비밀 연결 정보가 올바르지 않습니다.' : `Supabase 기록을 불러오지 못했습니다. ${e.message ? `(${e.message})` : ''}`); }
   }
   function render() {
     $('weight').value = day.weight; $('goalWeight').value = settings.goal_weight_kg ?? ''; $('goalStartWeight').value = settings.goal_start_weight_kg ?? ''; $('goalStartDate').value = settings.goal_start_date || ''; $('goalEndDate').value = settings.goal_end_date || '';
