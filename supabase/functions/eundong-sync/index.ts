@@ -13,7 +13,7 @@ function originAllowed(origin: string) {
 function cors(origin: string) {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Headers": "content-type,x-eundong-sync-token",
+    "Access-Control-Allow-Headers": "apikey,authorization,x-client-info,content-type,x-eundong-sync-token",
     "Access-Control-Allow-Methods": "POST,OPTIONS",
     "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
@@ -67,9 +67,7 @@ function secretKey() {
       if (typeof keys?.default === "string" && keys.default) return keys.default;
       const first = Object.values(keys ?? {}).find(v => typeof v === "string" && v);
       if (first) return String(first);
-    } catch {
-      // Fall through to legacy key.
-    }
+    } catch {}
   }
   return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 }
@@ -82,16 +80,18 @@ const db = supabaseUrl && adminKey
 
 Deno.serve(async req => {
   const origin = req.headers.get("origin") || "";
+  console.log("eundong-sync request", req.method, origin || "no-origin");
 
   if (!originAllowed(origin)) return new Response(null, { status: 403 });
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
   if (req.method !== "POST") return json(origin, { error: "METHOD_NOT_ALLOWED" }, 405);
   if (!db) return json(origin, { error: "SERVER_CONFIG_ERROR" }, 500);
 
-  const token = req.headers.get("x-eundong-sync-token") || "";
-  if (token.length < 40 || token.length > 256) return json(origin, { error: "INVALID_SYNC_TOKEN" }, 401);
-
   try {
+    const input = await req.json();
+    const token = req.headers.get("x-eundong-sync-token") || String(input.sync_token || "");
+    if (token.length < 40 || token.length > 256) return json(origin, { error: "INVALID_SYNC_TOKEN" }, 401);
+
     const digest = await tokenHash(token);
     const { data: access, error: accessError } = await db
       .from("eundong_access")
@@ -102,7 +102,6 @@ Deno.serve(async req => {
 
     if (accessError || !access) return json(origin, { error: "INVALID_SYNC_TOKEN" }, 401);
 
-    const input = await req.json();
     const action = String(input.action || "");
     let query: any;
 
