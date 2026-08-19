@@ -1,16 +1,127 @@
-import*as api from'./data.js';import{MEAL_TIMES,dailyTotals,targetForDate,numberOrNull,resolvedKcal}from'./calculations.js';
-const $=id=>document.getElementById(id),date=api.today();let user,cat,goal,feeds=[],meals=[],chart,activeSlot=0,timer;
-$('todayLabel').textContent=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'}).format(new Date());$('goalStart').value=date;
-function notice(s,error=false){$('notice').textContent=s;$('notice').classList.toggle('error',error)}function saving(s='저장 중'){$('saveState').textContent=s;$('saveState').className='save-state '+(s==='저장 실패'?'error':s==='저장 중'?'saving':'')}
-function debounce(fn){clearTimeout(timer);saving();timer=setTimeout(async()=>{try{await fn();saving('저장됨')}catch(e){console.error(e);saving('저장 실패');localStorage.setItem(`eundong-draft-${date}`,JSON.stringify({meals,weight:$('weight').value,goal:$('goalWeight').value}))}},650)}
-function renderFeeds(){ $('feedSlots').innerHTML=[0,1,2].map(i=>{const f=feeds[i];return`<button class="feed-slot ${f?'':'empty'}" data-slot="${i}"><span><strong>${f?f['제품명']:`+ 습사료 ${i+1} 검색`}</strong>${f?`<small>${f['수분']==null?'수분 정보 없음':`수분 ${f['수분']}%`} · ${resolvedKcal(f)==null?'칼로리 정보 없음':`${Math.round(resolvedKcal(f))} kcal/kg`}</small>`:''}</span><span>${f?'변경':'선택'}</span></button>`}).join('');document.querySelectorAll('.feed-slot').forEach(b=>b.onclick=()=>openSearch(+b.dataset.slot));renderMeals()}
-function renderMeals(){if(!meals.length)meals=MEAL_TIMES.map((t,i)=>({meal_slot:i+1,meal_time:t,feed_id:null,amount_g:'',added_water_ml:''}));$('meals').innerHTML=meals.map((m,i)=>`<div class="meal"><div class="meal-time">${MEAL_TIMES[i]}</div><div class="meal-fields"><select data-i="${i}" data-k="feed_id"><option value="">사료 선택</option>${feeds.filter(Boolean).map((f,j)=>`<option value="${f.id}" ${String(m.feed_id)===String(f.id)?'selected':''}>습사료 ${j+1} · ${f['제품명']}</option>`).join('')}</select><label class="field-unit"><input data-i="${i}" data-k="amount_g" type="number" min="0" step="0.1" inputmode="decimal" value="${m.amount_g??''}" placeholder="0"><span>g</span></label><label class="field-unit"><input data-i="${i}" data-k="added_water_ml" type="number" min="0" step="0.1" inputmode="decimal" value="${m.added_water_ml??''}" placeholder="0"><span>ml</span></label><p class="meal-note">${mealNote(m)}</p></div></div>`).join('');$('meals').querySelectorAll('input,select').forEach(el=>el.oninput=()=>{const m=meals[+el.dataset.i];m[el.dataset.k]=el.value;renderTotals();debounce(()=>saveMeal(m))});renderTotals()}
-function mealNote(m){const f=feeds.find(x=>String(x?.id)===String(m.feed_id));if(!f||!(Number(m.amount_g)>0))return'';return[f['수분']==null?'수분 정보 없음':'',resolvedKcal(f)==null?'칼로리 정보 없음':''].filter(Boolean).join(' · ')}
-async function saveMeal(m){const f=feeds.find(x=>String(x?.id)===String(m.feed_id));if(!m.feed_id)return;await api.saveMeal({user_id:user.id,cat_id:cat.id,recorded_date:date,meal_slot:m.meal_slot,meal_time:MEAL_TIMES[m.meal_slot-1],feed_id:m.feed_id,amount_g:Math.max(0,numberOrNull(m.amount_g)??0),added_water_ml:Math.max(0,numberOrNull(m.added_water_ml)??0),moisture_percent_snapshot:numberOrNull(f?.['수분']),kcal_per_kg_snapshot:resolvedKcal(f)})}
-function renderTotals(){const t=dailyTotals(meals,feeds.filter(Boolean)),items=[['습사료',t.grams,'g'],['칼로리',t.kcal,'kcal'],['사료 수분',t.foodWater,'ml'],['추가 물',t.addedWater,'ml'],['총 수분',t.foodWater+t.addedWater,'ml']];$('totals').innerHTML=items.map(([l,v,u])=>`<div class="total"><span>${l}</span><strong>${Math.round(v*10)/10}${u}</strong></div>`).join('');$('missingInfo').textContent=[t.missingMoisture?'일부 사료의 수분 정보가 없어 합계에서 제외했습니다.':'',t.missingKcal?'일부 사료의 칼로리 정보가 없어 합계에서 제외했습니다.':''].filter(Boolean).join(' ')}
-function openSearch(i){activeSlot=i;$('dialogTitle').textContent=`습사료 ${i+1}`;$('feedSearch').value='';$('feedResults').innerHTML='<p class="notice">제품명 두 글자 이상을 입력하세요.</p>';$('feedDialog').showModal();setTimeout(()=>$('feedSearch').focus(),50)}
-let searchTimer;$('feedSearch').oninput=e=>{clearTimeout(searchTimer);searchTimer=setTimeout(async()=>{try{const rows=await api.searchFeeds(e.target.value);$('feedResults').innerHTML=rows.length?rows.map((f,i)=>`<button class="result" data-i="${i}"><strong>${f['제품명']}</strong><small>${f['수분']==null?'수분 정보 없음':`수분 ${f['수분']}%`} · ${resolvedKcal(f)==null?'칼로리 정보 없음':`${Math.round(resolvedKcal(f))} kcal/kg`}</small></button>`).join(''):'<p class="notice">검색 결과가 없습니다.</p>';$('feedResults').querySelectorAll('button').forEach(b=>b.onclick=async()=>{const f=rows[+b.dataset.i];feeds[activeSlot]=f;renderFeeds();$('feedDialog').close();debounce(()=>api.saveSelection(user.id,cat.id,date,activeSlot+1,f.id))})}catch(err){notice(`사료 검색 실패: ${err.message}`,true)}},300)};
-function updateGoal(){const w=numberOrNull($('weight').value),g=numberOrNull($('goalWeight').value);$('remaining').textContent=w!=null&&g!=null?`목표까지 ${Math.abs(w-g).toFixed(2)}kg`:'목표를 입력해 주세요';goal=g==null?goal:{...(goal||{}),start_date:$('goalStart').value,start_weight:goal?.start_weight??w,goal_weight:g,weekly_change_kg:-.05};const weekly=targetForDate(goal,date);$('weeklyGoal').textContent=weekly==null?'주차별 목표 —':`이번 주 목표 ${weekly.toFixed(2)}kg · 주당 0.05kg 계획`}
-$('weight').oninput=()=>{updateGoal();const v=numberOrNull($('weight').value);if(v!=null)debounce(()=>api.saveWeight(user.id,cat.id,date,v))};for(const id of['goalWeight','goalStart'])$(id).oninput=()=>{updateGoal();const g=numberOrNull($('goalWeight').value),w=numberOrNull($('weight').value);if(g!=null&&w!=null)debounce(()=>api.saveGoal(user.id,cat.id,{start_date:$('goalStart').value,start_weight:goal?.start_weight??w,goal_weight:g,weekly_change_kg:-.05}))};
-function draw(h){const water={};h.meals.forEach(m=>water[m.recorded_date]=(water[m.recorded_date]||0)+Number(m.added_water_ml||0)+Number(m.amount_g||0)*Number(m.moisture_percent_snapshot||0)/100);const labels=[...new Set([...h.weights.map(x=>x.recorded_date),...Object.keys(water)])].sort();if(!labels.length)return;$('chartEmpty').hidden=true;chart?.destroy();chart=new Chart($('trendChart'),{data:{labels,datasets:[{type:'line',label:'실제 체중',data:labels.map(d=>h.weights.find(x=>x.recorded_date===d)?.weight_kg??null),yAxisID:'y',borderColor:'#2c6558',tension:.25},{type:'line',label:'목표 체중',data:labels.map(d=>targetForDate(h.goal,d)),yAxisID:'y',borderColor:'#9a6a17',borderDash:[5,5],pointRadius:0},{type:'bar',label:'총 수분',data:labels.map(d=>water[d]??null),yAxisID:'water',backgroundColor:'#b9d2c9'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{position:'left',ticks:{callback:v=>v+'kg'}},water:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false},ticks:{callback:v=>v+'ml'}},x:{ticks:{maxRotation:0,autoSkip:true,maxTicksLimit:7}}}}})}
-async function init(){const s=await api.session();if(!s){$('authButton').onclick=api.signIn;return}user=s.user;$('authButton').textContent='로그아웃';$('authButton').onclick=()=>api.db.auth.signOut().then(()=>location.reload());try{cat=await api.pet(user.id);if(!cat)throw new Error('로그인 계정에서 은동이 프로필을 찾지 못했습니다.');notice(`${cat.name} · ${date}`);const[d,h]=await Promise.all([api.loadDay(cat.id,date),api.history(cat.id)]);goal=d.goal;$('weight').value=d.weight?.weight_kg??'';$('goalWeight').value=goal?.goal_weight??'';$('goalStart').value=goal?.start_date??date;d.selections.forEach(x=>feeds[x.slot-1]=x.feeds);meals=MEAL_TIMES.map((t,i)=>d.meals.find(m=>m.meal_slot===i+1)||{meal_slot:i+1,meal_time:t,feed_id:null,amount_g:'',added_water_ml:''});updateGoal();renderFeeds();draw(h);saving('저장됨')}catch(e){console.error(e);notice(e.message,true)}}init();
+import * as data from './data.js';
+import { dailyTotals, targetForDate, numberOrNull, resolvedKcal } from './calculations.js';
+
+const $ = id => document.getElementById(id);
+const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
+const date = data.today();
+let store = data.loadStore();
+let day = data.ensureDay(store, date);
+let chart;
+let activeSlot = 0;
+let saveTimer;
+
+$('todayLabel').textContent = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', weekday: 'long' }).format(new Date());
+$('notice').textContent = `${store.settings.petName || '은동'} · ${date} · 이 브라우저에만 저장됩니다.`;
+
+function persist() {
+  data.saveStore(store);
+  $('saveState').textContent = '저장됨';
+  $('saveState').className = 'save-state';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { $('saveState').textContent = '자동 저장'; }, 1200);
+  drawChart();
+}
+
+function snapshot(feed) {
+  return { feedId: feed.id, name: feed['제품명'], moisture: numberOrNull(feed['수분']), kcalPerKg: resolvedKcal(feed) };
+}
+function calculationFeed(feed) { return feed && { id: feed.feedId, '제품명': feed.name, '수분': feed.moisture, final_me: feed.kcalPerKg }; }
+
+function renderFeeds() {
+  $('feedSlots').innerHTML = [0, 1, 2].map(i => {
+    const feed = day.selectedFeeds[i];
+    return `<button class="feed-slot ${feed ? '' : 'empty'}" data-slot="${i}"><span><strong>${feed ? escapeHtml(feed.name) : `+ 습사료 ${i + 1} 검색`}</strong>${feed ? `<small>${feed.moisture == null ? '수분 정보 없음' : `수분 ${feed.moisture}%`} · ${feed.kcalPerKg == null ? '칼로리 정보 없음' : `${Math.round(feed.kcalPerKg)} kcal/kg`}</small>` : ''}</span><span>${feed ? '변경' : '선택'}</span></button>`;
+  }).join('');
+  document.querySelectorAll('.feed-slot').forEach(button => button.onclick = () => openSearch(Number(button.dataset.slot)));
+  renderMeals();
+}
+
+function renderMeals() {
+  $('meals').innerHTML = day.meals.map((meal, i) => `<div class="meal"><div class="meal-time">${escapeHtml(meal.time)}</div><div class="meal-fields"><select aria-label="${i + 1}회 급여 사료" data-i="${i}" data-k="feedId"><option value="">사료 선택</option>${day.selectedFeeds.filter(Boolean).map((feed, j) => `<option value="${escapeHtml(feed.feedId)}" ${String(meal.feedId) === String(feed.feedId) ? 'selected' : ''}>습사료 ${j + 1} · ${escapeHtml(feed.name)}</option>`).join('')}</select><label class="field-unit"><input aria-label="${i + 1}회 급여량" data-i="${i}" data-k="amountG" type="number" min="0" step="0.1" inputmode="decimal" value="${escapeHtml(meal.amountG)}" placeholder="0"><span>g</span></label><label class="field-unit"><input aria-label="${i + 1}회 추가 물" data-i="${i}" data-k="addedWaterMl" type="number" min="0" step="0.1" inputmode="decimal" value="${escapeHtml(meal.addedWaterMl)}" placeholder="0"><span>ml</span></label></div></div>`).join('');
+  $('meals').querySelectorAll('input,select').forEach(el => el.oninput = () => {
+    day.meals[Number(el.dataset.i)][el.dataset.k] = el.value;
+    renderTotals(); persist();
+  });
+  renderTotals();
+}
+
+function renderTotals() {
+  const feeds = day.selectedFeeds.filter(Boolean).map(calculationFeed);
+  const meals = day.meals.map(meal => ({ feed_id: meal.feedId, amount_g: meal.amountG, added_water_ml: meal.addedWaterMl }));
+  const totals = dailyTotals(meals, feeds);
+  const items = [['습사료', totals.grams, 'g'], ['칼로리', totals.kcal, 'kcal'], ['사료 수분', totals.foodWater, 'ml'], ['추가 물', totals.addedWater, 'ml'], ['총 수분', totals.foodWater + totals.addedWater, 'ml']];
+  $('totals').innerHTML = items.map(([label, value, unit]) => `<div class="total"><span>${label}</span><strong>${Math.round(value * 10) / 10}${unit}</strong></div>`).join('');
+  $('missingInfo').textContent = [totals.missingMoisture ? '일부 사료의 수분 정보가 없어 합계에서 제외했습니다.' : '', totals.missingKcal ? '일부 사료의 칼로리 정보가 없어 합계에서 제외했습니다.' : ''].filter(Boolean).join(' ');
+  return totals;
+}
+
+function openSearch(slot) {
+  activeSlot = slot; $('dialogTitle').textContent = `습사료 ${slot + 1}`; $('feedSearch').value = '';
+  $('feedResults').innerHTML = '<p class="notice">제품명 두 글자 이상을 입력하세요.</p>';
+  $('feedDialog').showModal(); setTimeout(() => $('feedSearch').focus(), 50);
+}
+let searchTimer;
+$('feedSearch').oninput = event => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    try {
+      const rows = await data.searchFeeds(event.target.value);
+      $('feedResults').innerHTML = rows.length ? rows.map((feed, i) => `<button class="result" data-i="${i}"><strong>${escapeHtml(feed['제품명'])}</strong><small>${feed['수분'] == null ? '수분 정보 없음' : `수분 ${feed['수분']}%`} · ${resolvedKcal(feed) == null ? '칼로리 정보 없음' : `${Math.round(resolvedKcal(feed))} kcal/kg`}</small></button>`).join('') : '<p class="notice">검색 결과가 없습니다.</p>';
+      $('feedResults').querySelectorAll('button').forEach(button => button.onclick = () => {
+        const oldId = day.selectedFeeds[activeSlot]?.feedId;
+        const selected = snapshot(rows[Number(button.dataset.i)]);
+        day.selectedFeeds[activeSlot] = selected;
+        day.meals.forEach(meal => { if (String(meal.feedId) === String(oldId)) meal.feedId = selected.feedId; });
+        renderFeeds(); $('feedDialog').close(); persist();
+      });
+    } catch (error) { $('feedResults').innerHTML = `<p class="notice error">사료 검색 실패: ${escapeHtml(error.message)}</p>`; }
+  }, 300);
+};
+
+function updateGoal() {
+  const weight = numberOrNull($('weight').value), goal = numberOrNull($('goalWeight').value);
+  $('remaining').textContent = weight != null && goal != null ? `목표까지 ${Math.abs(weight - goal).toFixed(2)}kg` : '목표를 입력해 주세요';
+  const weekly = targetForDate({ start_date: store.settings.goalStartDate, start_weight: store.settings.goalStartWeightKg, goal_weight: goal, weekly_change_kg: store.settings.weeklyChangeKg }, date);
+  $('weeklyGoal').textContent = weekly == null ? '주차별 목표 —' : `이번 주 목표 ${weekly.toFixed(2)}kg · 주당 0.05kg 계획`;
+}
+$('weight').value = day.weightKg ?? '';
+$('goalWeight').value = store.settings.goalWeightKg ?? '';
+$('goalStart').value = store.settings.goalStartDate || date;
+$('weight').oninput = () => { day.weightKg = $('weight').value; if (!store.settings.goalStartWeightKg && numberOrNull(day.weightKg) != null) store.settings.goalStartWeightKg = numberOrNull(day.weightKg); updateGoal(); persist(); };
+for (const id of ['goalWeight', 'goalStart']) $(id).oninput = () => {
+  store.settings.goalWeightKg = $('goalWeight').value; store.settings.goalStartDate = $('goalStart').value || date;
+  if (!store.settings.goalStartWeightKg && numberOrNull(day.weightKg) != null) store.settings.goalStartWeightKg = numberOrNull(day.weightKg);
+  updateGoal(); persist();
+};
+
+function historyRows() {
+  return Object.entries(store.dailyRecords).sort(([a], [b]) => a.localeCompare(b)).slice(-30).map(([recordDate, record]) => {
+    const feeds = (record.selectedFeeds || []).map(calculationFeed);
+    const meals = (record.meals || []).map(meal => ({ feed_id: meal.feedId, amount_g: meal.amountG, added_water_ml: meal.addedWaterMl }));
+    const totals = dailyTotals(meals, feeds);
+    return { date: recordDate, weight: numberOrNull(record.weightKg), water: totals.foodWater + totals.addedWater };
+  });
+}
+function drawChart() {
+  const rows = historyRows();
+  if (!rows.some(row => row.weight != null || row.water > 0)) { $('chartEmpty').hidden = false; chart?.destroy(); chart = null; return; }
+  $('chartEmpty').hidden = true; chart?.destroy();
+  const goal = { start_date: store.settings.goalStartDate, start_weight: store.settings.goalStartWeightKg, goal_weight: store.settings.goalWeightKg, weekly_change_kg: store.settings.weeklyChangeKg };
+  chart = new Chart($('trendChart'), { data: { labels: rows.map(row => row.date), datasets: [{ type: 'line', label: '실제 체중', data: rows.map(row => row.weight), yAxisID: 'y', borderColor: '#2c6558', tension: .25 }, { type: 'line', label: '목표 체중', data: rows.map(row => targetForDate(goal, row.date)), yAxisID: 'y', borderColor: '#9a6a17', borderDash: [5, 5], pointRadius: 0 }, { type: 'bar', label: '총 수분', data: rows.map(row => row.water || null), yAxisID: 'water', backgroundColor: '#b9d2c9' }] }, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { position: 'left', ticks: { callback: value => `${value}kg` } }, water: { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, ticks: { callback: value => `${value}ml` } }, x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 7 } } } } });
+}
+
+$('backupButton').onclick = () => {
+  const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+  const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `eundong-backup-${date}.json` });
+  link.click(); URL.revokeObjectURL(link.href); $('dataMessage').textContent = '백업 파일을 만들었습니다.';
+};
+$('restoreButton').onclick = () => $('restoreFile').click();
+$('restoreFile').onchange = async event => {
+  try {
+    const parsed = JSON.parse(await event.target.files[0].text());
+    if (!data.isValidStore(parsed)) throw new Error('은동이 백업 파일 형식이 아닙니다.');
+    localStorage.setItem(data.STORAGE_KEY, JSON.stringify(parsed)); location.reload();
+  } catch (error) { $('dataMessage').textContent = `복원 실패: ${error.message}`; $('dataMessage').classList.add('error'); event.target.value = ''; }
+};
+
+updateGoal(); renderFeeds(); drawChart(); $('saveState').textContent = '자동 저장';
