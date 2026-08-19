@@ -9,9 +9,9 @@
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
-<header><div><p class="eyebrow">EUNDONG DAILY</p><h1 id="todayLabel">오늘</h1></div><button id="authButton" class="quiet">로그인</button></header>
+<header><div><p class="eyebrow">EUNDONG DAILY</p><h1 id="todayLabel">오늘</h1></div><span class="local-badge">은동이 전용</span></header>
 <main>
-  <div id="notice" class="notice">로그인하면 은동이의 기록을 안전하게 불러옵니다.</div>
+  <div id="notice" class="notice">이 브라우저에 기록을 준비하고 있습니다.</div>
   <section aria-labelledby="weightTitle">
     <div class="section-head"><h2 id="weightTitle">오늘의 체중</h2><span id="saveState" class="save-state">—</span></div>
     <div class="weight-row"><label>오늘 <span class="unit-input"><input id="weight" type="number" min="0" step="0.01" inputmode="decimal"><b>kg</b></span></label><span class="arrow">→</span><label>목표 <span class="unit-input"><input id="goalWeight" type="number" min="0" step="0.01" inputmode="decimal"><b>kg</b></span></label></div>
@@ -22,7 +22,8 @@
   <section aria-labelledby="feedsTitle"><div class="section-head"><h2 id="feedsTitle">오늘 사용할 습사료</h2><span>최대 3개</span></div><div id="feedSlots" class="feed-slots"></div></section>
   <section aria-labelledby="mealsTitle"><div class="section-head"><h2 id="mealsTitle">오늘의 4회 급여</h2><span>입력 시 자동 저장</span></div><div id="meals" class="meals"></div></section>
   <section aria-labelledby="totalTitle"><h2 id="totalTitle">오늘의 합계</h2><div id="totals" class="totals"></div><p id="missingInfo" class="missing"></p></section>
+  <section class="data-tools" aria-labelledby="dataTitle"><div><h2 id="dataTitle">데이터 관리</h2><p>브라우저 데이터 삭제에 대비해 기록을 파일로 보관하세요.</p></div><div class="data-actions"><button id="backupButton" class="quiet">데이터 백업</button><button id="restoreButton" class="quiet">데이터 복원</button><input id="restoreFile" type="file" accept="application/json,.json" hidden></div><p id="dataMessage" class="data-message" role="status"></p></section>
 </main>
 <dialog id="feedDialog"><form method="dialog" class="dialog-head"><div><p class="eyebrow">습식사료 선택</p><h2 id="dialogTitle">습사료 1</h2></div><button aria-label="닫기" class="icon-button">×</button></form><label class="search"><span>제품명 검색</span><input id="feedSearch" type="search" autocomplete="off" placeholder="두 글자 이상 입력"></label><div id="feedResults" class="results"></div></dialog>
-<footer>은동이의 기록은 로그인한 계정에서만 저장됩니다.</footer>
+<footer>개인 기록은 서버가 아닌 이 브라우저의 localStorage에만 저장됩니다.</footer>
 </body></html>

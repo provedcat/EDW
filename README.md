@@ -1,14 +1,16 @@
 # EUNDONG DAILY
 
-은동이 개인용 체중·습식 급여·수분 기록 앱입니다. 빌드 단계 없는 HTML/CSS/ES modules 구조로 GitHub Pages에서 실행됩니다.
+은동이 개인용 체중·습식 급여·수분 기록 앱입니다. 빌드 단계 없이 GitHub Pages에서 바로 실행됩니다.
 
-## 배포 전 준비
+## 데이터 구조
 
-1. Supabase SQL editor 또는 CLI에서 `supabase/migrations/202608190001_eundong_daily.sql`을 적용합니다.
-2. Supabase Auth의 허용 Redirect URL에 Pages URL을 추가합니다.
-3. 로그인 계정의 기존 `public.cats` 행 이름이 `은동이`인지 확인합니다.
+- 로그인과 사용자 계정은 없습니다.
+- 체중, 목표, 선택 사료 snapshot, 급여 기록은 모두 브라우저 `localStorage`의 `eundong-daily-v1` 키에 날짜별로 저장됩니다.
+- Supabase는 기존 `public.feeds`에서 `type = 'wet'`인 공개 검색 가능 사료를 **SELECT만** 합니다. 앱에 포함된 키는 공개 anon key이며 쓰기 또는 관리자 키를 사용하지 않습니다.
+- 다음 한국 날짜를 처음 열면 가장 최근 선택 사료를 복사하되, 네 끼의 급여량과 추가 물은 빈 값으로 시작합니다.
+- 화면 하단에서 전체 로컬 데이터를 JSON으로 백업하고 복원할 수 있습니다.
 
-기존 저장소 코드에서 확인된 운영 스키마는 `cats(id, user_id, name)`, `weight_records(cat_id, user_id, recorded_date, weight_kg)`이며, Proved의 기존 사료 UI는 `feeds.final_me`를 kcal/kg의 최종값으로 사용했습니다. 따라서 앱은 사료 영양값을 재계산하지 않습니다. 네트워크가 제한된 개발 환경에서는 원격 schema/RLS introspection을 수행할 수 없으므로 migration 적용 전 staging에서 FK 타입과 기존 정책을 확인하세요. 브라우저에는 공개 anon key만 포함되며 개인 테이블은 authenticated + 소유자 RLS로 보호됩니다.
+Supabase 프로젝트의 `feeds` RLS는 `anon` 역할이 앱 검색에 필요한 공개 행과 열만 읽도록 운영 환경에서 유지해야 합니다. 이 저장소는 개인 기록용 테이블이나 migration을 만들지 않습니다.
 
 ## 로컬 확인
 
