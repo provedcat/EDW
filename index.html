@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f2e9"><title>EUNDONG DAILY</title><link rel="stylesheet" href="css/app.css"><script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script><script type="importmap">{"imports":{"./js/api.js":"./js/api.js?v=20260819-2"}}</script><script type="module" src="js/app.js?v=20260819-2"></script></head>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f5f2e9"><title>EUNDONG DAILY</title><link rel="stylesheet" href="css/app.css?v=20260819-4"><script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script></head>
 <body><div id="unlinked" class="gate" hidden><p class="eyebrow">EUNDONG DAILY</p><h1>이 기기는 아직 은동이 기록에 연결되지 않았습니다.</h1><p>은동이 비밀 연결 주소를 이 기기에서 한 번 열어 주세요.</p></div>
 <div id="app" hidden><header><div><p class="eyebrow">EUNDONG DAILY</p><h1 id="dateLabel">—</h1></div><div><span class="pet">은동</span><small id="saveState" role="status">불러오는 중</small></div></header><main>
 <p id="error" class="error" role="alert" hidden></p>
@@ -8,4 +8,42 @@
 <section><div class="section-head"><h2>오늘의 급여</h2><span>4회 · 자동 저장</span></div><div class="meal-labels"><span>시간 / 사료</span><span>급여량</span><span>+ 물</span></div><div id="meals"></div></section>
 <section class="summary"><h2>오늘의 합계</h2><div id="totals"></div><p id="missing" class="missing"></p></section>
 </main><footer>Supabase에 보안 연결 · 마지막 동기화 <span id="syncedAt">—</span></footer></div>
-<dialog id="feedDialog"><div class="dialog-head"><div><p class="eyebrow">오늘의 습사료</p><h2 id="dialogTitle">사료 검색</h2></div><button id="closeDialog" class="close" aria-label="닫기">×</button></div><label class="search">제품명<input id="feedSearch" type="search" autocomplete="off" placeholder="두 글자 이상 입력"></label><div id="feedResults" class="results"><p>제품명을 입력해 주세요.</p></div></dialog></body></html>
+<dialog id="feedDialog"><div class="dialog-head"><div><p class="eyebrow">오늘의 습사료</p><h2 id="dialogTitle">사료 검색</h2></div><button id="closeDialog" class="close" aria-label="닫기">×</button></div><label class="search">제품명<input id="feedSearch" type="search" autocomplete="off" placeholder="두 글자 이상 입력"></label><div id="feedResults" class="results"><p>제품명을 입력해 주세요.</p></div></dialog>
+<script>
+(async () => {
+  const cleanupKey = 'edw-legacy-sw-cleanup-20260819-4';
+  let hadEdwController = false;
+  try {
+    if ('serviceWorker' in navigator) {
+      const controllerUrl = navigator.serviceWorker.controller?.scriptURL || '';
+      hadEdwController = controllerUrl.includes('/EDW/') || controllerUrl.endsWith('/service-worker.js');
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.filter(reg => {
+        try { return new URL(reg.scope).pathname.startsWith('/EDW/'); } catch { return false; }
+      }).map(reg => reg.unregister()));
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter(key => /^provedcat-pwa-v\d+$/.test(key)).map(key => caches.delete(key)));
+    }
+    if (hadEdwController && !sessionStorage.getItem(cleanupKey)) {
+      sessionStorage.setItem(cleanupKey, '1');
+      const url = new URL(location.href);
+      url.searchParams.set('fresh', '20260819-4');
+      location.replace(url.toString());
+      return;
+    }
+    sessionStorage.removeItem(cleanupKey);
+    await import('./js/app.js?v=20260819-4');
+  } catch (error) {
+    console.error('EDW bootstrap failed', error);
+    const app = document.getElementById('app');
+    const alert = document.getElementById('error');
+    if (app && alert) {
+      app.hidden = false;
+      alert.hidden = false;
+      alert.textContent = '앱 최신 파일을 불러오지 못했습니다. 페이지를 다시 열어 주세요.';
+    }
+  }
+})();
+</script></body></html>
