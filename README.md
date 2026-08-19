@@ -1,30 +1,46 @@
 # EUNDONG DAILY
 
-은동이 한 마리의 체중, 습식 급여, 수분을 여러 기기에서 기록하는 GitHub Pages 정적 앱입니다. 로그인 UI 대신 긴 비밀 URL fragment를 한 번 열어 연결하며, 개인 데이터는 Supabase Edge Function만 읽고 씁니다.
+은동이의 체중, 습식 급여량, 칼로리와 수분 섭취량을 여러 기기에서 기록하는 개인용 GitHub Pages 앱입니다.
 
-## 배포
+로그인 UI는 없습니다. 새 기기에서는 긴 비밀 연결 URL을 한 번 열어 연결하고, 이후에는 일반 앱 주소만 열면 됩니다. 개인 기록은 Supabase에 저장되며 `public.feeds`는 습식사료 검색용으로만 읽습니다.
 
-1. Supabase CLI로 `supabase/migrations/202608190001_eundong_daily.sql`을 적용합니다.
-2. 32바이트 이상의 무작위 token을 만들고 SHA-256 hex digest를 구합니다.
-   ```sh
-   TOKEN="$(openssl rand -base64 48 | tr -d '\n')"
-   printf %s "$TOKEN" | openssl dgst -sha256
-   ```
-3. Edge Function secret `EUNDONG_SYNC_TOKEN_SHA256`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`를 설정하고 `eundong-sync`를 배포합니다. 실제 token과 service role key는 저장소나 브라우저 코드에 넣지 않습니다.
-4. 이 저장소 루트를 GitHub Pages로 배포하고, 최초 기기마다 `https://provedcat.github.io/catfoodcalculator/#sync=TOKEN`을 한 번 엽니다. 앱은 token을 localStorage에 보관한 뒤 fragment를 즉시 제거합니다.
+## 운영 주소
 
-```sh
-supabase db push
-supabase secrets set EUNDONG_SYNC_TOKEN_SHA256=<64자리-hex>
-supabase functions deploy eundong-sync --no-verify-jwt
-```
+일반 주소:
 
-## 보안 구조
+`https://provedcat.github.io/EDW/`
 
-- 신규 네 테이블은 RLS가 켜져 있고 `anon`/`authenticated` 정책과 권한이 없습니다.
-- 함수는 매 요청의 `X-Eundong-Sync-Token`을 SHA-256 해시하고 환경 변수의 digest와 constant-time 비교한 뒤 service role로 접근합니다.
-- 사료 검색도 함수가 기존 `public.feeds`를 읽기만 하며, Proved에서 사용하던 최종 적용 열 `final_me`를 snapshot 합니다.
-- 허용 origin은 GitHub Pages 운영 주소와 localhost 개발 주소뿐입니다.
+최초 연결 주소 형식:
+
+`https://provedcat.github.io/EDW/#sync=PRIVATE_TOKEN`
+
+앱은 `#sync=` 값을 localStorage에 보관한 뒤 `history.replaceState()`로 주소창에서 즉시 제거합니다. 비밀 token 원문은 GitHub 저장소에 넣지 않습니다.
+
+## 동기화 구조
+
+- 브라우저 → `eundong-sync` Supabase Edge Function
+- 요청 헤더 `X-Eundong-Sync-Token`의 SHA-256 digest 검증
+- digest는 `eundong_access.token_hash`에만 저장
+- Edge Function만 은동이 개인 테이블을 읽고 씀
+- 개인 테이블은 RLS 활성화 + `anon`/`authenticated` 직접 권한 없음
+- `feeds`의 실제 UUID `id`를 사용하며, 선택 시 제품명·수분·최종 적용 kcal/kg를 snapshot
+
+## 주요 데이터
+
+- `eundong_settings`: 목표 체중과 목표 기간
+- `eundong_daily_records`: 날짜별 체중
+- `eundong_daily_feeds`: 날짜별 습식사료 1~3
+- `eundong_meals`: 하루 4회 급여량과 추가 물
+- `eundong_access`: 비밀 연결 token의 SHA-256 digest
+
+## 보안
+
+다음 값은 프론트엔드나 GitHub에 저장하지 않습니다.
+
+- service role / secret API key
+- 비밀 연결 token 원문
+
+Edge Function은 로그인 JWT 대신 충분히 긴 개인 sync token을 자체 검증하므로 `verify_jwt = false`입니다. Supabase 서버 권한은 함수 런타임 안에서만 사용됩니다.
 
 ## 로컬 검사
 
@@ -32,5 +48,3 @@ supabase functions deploy eundong-sync --no-verify-jwt
 python3 -m http.server 4173
 node --test
 ```
-
-Supabase 원격 프로젝트에 실제 migration/function을 적용하고 통합 검증하려면 프로젝트 배포 권한과 네트워크가 필요합니다.
