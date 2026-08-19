@@ -1,4 +1,4 @@
-import { Api, captureToken } from './api.js';
+import { Api, captureToken } from './api.js?v=20260819-2';
 import { dailyTotals, numberOrNull, targetForDate } from './calculations.js';
 
 const $ = id => document.getElementById(id), TIMES = ['06:30', '09:00', '18:30', '23:00'], DRAFT_PREFIX = 'eundong-draft-';
