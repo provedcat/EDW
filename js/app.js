@@ -34,6 +34,13 @@ function escape(value) {
 }
 function draftKey(date) { return `${DRAFT_PREFIX}${date}`; }
 function timeValue(value) { return String(value || '').slice(0, 5); }
+function feedTypeIcon(type) {
+  const label = type === 'dry' ? '건사료' : '습식사료';
+  const shapes = type === 'dry'
+    ? '<circle cx="5" cy="11" r="2"/><circle cx="10" cy="8" r="2"/><circle cx="15" cy="11" r="2"/>'
+    : '<path d="M6 4h8l1 2v9.5c0 .8-.7 1.5-1.5 1.5h-7c-.8 0-1.5-.7-1.5-1.5V6l1-2Zm-1 3h10M8 4V3h4v1"/>';
+  return `<svg class="feed-type-icon" viewBox="0 0 20 20" role="img" aria-label="${label}">${shapes}</svg>`;
+}
 
 async function start(api) {
   let date = seoulDate();
@@ -227,7 +234,7 @@ async function start(api) {
   function renderFeeds() {
     $('feedSlots').innerHTML = day.feeds.map((f, i) => `
       <button class="feed-slot ${f ? '' : 'empty'}" data-slot="${i + 1}">
-        <span><span class="index">${String(i + 1).padStart(2, '0')}</span><span>
+        <span><span class="index">${String(i + 1).padStart(2, '0')}</span>${f ? feedTypeIcon(f.feed_type_snapshot) : ''}<span>
           <strong>${f ? escape(f.feed_name_snapshot) : '사료 검색'}</strong>
           ${f ? `<small>${f.moisture_snapshot == null ? '수분 정보 없음' : `수분 ${f.moisture_snapshot}%`} · ${f.kcal_per_kg_snapshot == null ? '칼로리 정보 없음' : `${Math.round(f.kcal_per_kg_snapshot)} kcal/kg`}</small>` : ''}
         </span></span>
