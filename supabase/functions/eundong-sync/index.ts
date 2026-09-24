@@ -146,7 +146,6 @@ Deno.serve(async req => {
         feed_slot: slot,
         feed_id: feed.id,
         feed_name_snapshot: feed["제품명"],
-        feed_type_snapshot: feed.type === "dry" ? "dry" : "wet",
         moisture_snapshot: feed["수분"],
         kcal_per_kg_snapshot: kcal,
       }, { onConflict: "recorded_date,feed_slot" }).select().single();
@@ -160,7 +159,6 @@ Deno.serve(async req => {
           feed_slot: integer(f.feed_slot, 1, 6),
           feed_id: f.feed_id,
           feed_name_snapshot: String(f.feed_name_snapshot).slice(0, 500),
-          feed_type_snapshot: f.feed_type_snapshot === "dry" ? "dry" : "wet",
           moisture_snapshot: numeric(f.moisture_snapshot, 0, 100, true),
           kcal_per_kg_snapshot: numeric(f.kcal_per_kg_snapshot, 0, 100000, true),
         };
